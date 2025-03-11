@@ -99,13 +99,12 @@ class TitaConstraintHimRoughCfg( LeggedRobotCfg ):
         soft_dof_pos_limit = 0.9
         base_height_target = 0.29
         class scales( LeggedRobotCfg.rewards.scales ):
-
             torques = 0.0
             powers = -2e-5
-            termination = 0.0
+            termination = -200
             tracking_lin_vel = 1.0
             tracking_ang_vel = 0.5
-            lin_vel_z = -2.0
+            lin_vel_z = -0.0
             ang_vel_xy = -0.05
             dof_vel = 0.0
             dof_acc = -2.5e-7
@@ -118,6 +117,7 @@ class TitaConstraintHimRoughCfg( LeggedRobotCfg ):
             stand_still = 0.0
             foot_clearance= -0.0
             orientation=-1.0
+
     class domain_rand( LeggedRobotCfg.domain_rand):
         randomize_friction = True
         friction_range = [0.2, 2.75]
@@ -135,8 +135,8 @@ class TitaConstraintHimRoughCfg( LeggedRobotCfg ):
         motor_strength_range = [0.8, 1.2]
 
         randomize_kpkd = True
-        kp_range = [0.8,1.2]
-        kd_range = [0.8,1.2]
+        kp_range = [0.8, 1.2]
+        kd_range = [0.8, 1.2]
 
         randomize_lag_timesteps = True
         lag_timesteps = 3
@@ -194,7 +194,7 @@ class TitaConstraintHimRoughCfg( LeggedRobotCfg ):
         num_costs = 6
     
     class terrain(LeggedRobotCfg.terrain):
-        mesh_type = 'plane'  # "heightfield" # none, plane, heightfield or trimesh
+        mesh_type = 'trimesh'  # "heightfield" # none, plane, heightfield or trimesh
         measure_heights = True
         include_act_obs_pair_buf = False
 
@@ -236,8 +236,8 @@ class TitaConstraintHimRoughCfgPPO( LeggedRobotCfgPPO ):
         algorithm_class_name = 'NP3O'
         max_iterations = 10000
         num_steps_per_env = 24
-        resume = False
-        resume_path = ''
+        resume = True
+        resume_path = 'tita_example_10000.pt'
  
 
   
