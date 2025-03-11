@@ -41,8 +41,10 @@ class TitaConstraintHimRoughCfg( LeggedRobotCfg ):
         num_observations = n_proprio + n_scan + history_len*n_proprio + n_priv_latent
 
     class init_state( LeggedRobotCfg.init_state ):
-        pos = [0.0, 0.0, 0.34] # x,y,z [m]
-
+        pos = [0.0, 0.0, 0.3] # x,y,z [m]
+        rot = [0, 0.0, 0.0, 1]  # x, y, z, w [quat]
+        lin_vel = [0.0, 0.0, 0.0]  # x, y, z [m/s]
+        ang_vel = [0.0, 0.0, 0.0]  # x, y, z [rad/s]       
         default_joint_angles = {
                 'joint_left_leg_1': 0,
                 'joint_right_leg_1': 0,
@@ -97,7 +99,7 @@ class TitaConstraintHimRoughCfg( LeggedRobotCfg ):
   
     class rewards( LeggedRobotCfg.rewards ):
         soft_dof_pos_limit = 0.9
-        base_height_target = 0.29
+        base_height_target = 0.35
         class scales( LeggedRobotCfg.rewards.scales ):
             torques = 0.0
             powers = -2e-5
