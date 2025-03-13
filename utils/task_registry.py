@@ -3,6 +3,8 @@ from datetime import datetime
 from typing import Tuple
 import torch
 import numpy as np
+from shutil import copyfile
+import ntpath
 
 from envs.vec_env import VecEnv
 from runner import OnConstraintPolicyRunner
@@ -32,6 +34,33 @@ class TaskRegistry():
         env_cfg.seed = train_cfg.seed
         return env_cfg, train_cfg
     
+    def save_cfgs(self, name) -> Tuple[LeggedRobotCfg, LeggedRobotCfgPPO]:
+        os.mkdir(self.log_dir)
+
+        save_items = [
+            os.path.join(
+                self.log_dir,
+                ENVS_DIR + "/legged_robot.py",
+                ),
+            os.path.join(
+                self.log_dir,
+                ROOT_DIR + "/configs/legged_robot_config.py",
+                ),
+            os.path.join(
+                self.log_dir,
+                ROOT_DIR + "/configs/" + "{}_constraint_config.py".format(name),
+                ),
+        ]
+        py_root = os.path.join(
+            ENVS_DIR  + "{}.py".format(name),
+            )
+        if os.path.exists(py_root):
+            save_items.append(os.path.join(self.log_dir, py_root))
+        if save_items is not None:
+            for save_item in save_items:
+                base_file_name = ntpath.basename(save_item)
+                copyfile(save_item, self.log_dir + "/" + base_file_name)
+
     def make_env(self, name, args=None, env_cfg=None) -> Tuple[VecEnv, LeggedRobotCfg]:
         """ Creates an environment either from a registered namme or from the provided config file.
 
@@ -107,15 +136,14 @@ class TaskRegistry():
 
         if log_root=="default":
             log_root = os.path.join(ROOT_DIR, 'logs', train_cfg.runner.experiment_name)
-            log_dir = os.path.join(log_root, datetime.now().strftime('%b%d_%H-%M-%S') + '_' + train_cfg.runner.run_name)
+            self.log_dir = os.path.join(log_root, datetime.now().strftime('%b%d_%H-%M-%S') + '_' + train_cfg.runner.run_name)
         elif log_root is None:
-            log_dir = None
+            self.log_dir = None
         else:
-            log_dir = os.path.join(log_root, datetime.now().strftime('%b%d_%H-%M-%S') + '_' + train_cfg.runner.run_name)
-        
+            self.log_dir = os.path.join(log_root, datetime.now().strftime('%b%d_%H-%M-%S') + '_' + train_cfg.runner.run_name)
         train_cfg_dict = class_to_dict(train_cfg)
         runner_class = eval(train_cfg.runner.runner_class_name)
-        runner = runner_class(env, train_cfg_dict, log_dir, device=args.rl_device)
+        runner = runner_class(env, train_cfg_dict, self.log_dir, device=args.rl_device)
         #save resume path before creating a new log_dir
         # resume = train_cfg.runner.resume
         # if resume:

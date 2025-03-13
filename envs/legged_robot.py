@@ -810,6 +810,7 @@ class LeggedRobot(BaseTask):
 
         # 使用固定的初始旋转
         self.root_states[env_ids, 3:7] = self.base_init_state[3:7]        # random height
+        
         self.root_states[env_ids, 2:3] += torch_rand_float(0, 0.2, (len(env_ids), 1), device=self.device)
         env_ids_int32 = env_ids.to(dtype=torch.int32)
         self.gym.set_actor_root_state_tensor_indexed(self.sim,

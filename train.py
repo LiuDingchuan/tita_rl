@@ -1,7 +1,7 @@
 import numpy as np
 import os
 from datetime import datetime
-from configs.tita_constraint_him import TitaConstraintHimRoughCfg, TitaConstraintHimRoughCfgPPO
+from configs.tita_constraint_config import TitaConstraintHimRoughCfg, TitaConstraintHimRoughCfgPPO
 from configs.titati_constaint_config import TitatiConstraintHimRoughCfg, TitatiConstraintHimRoughCfgPPO
 
 
@@ -13,12 +13,13 @@ from utils.task_registry import task_registry
 def train(args):
     env, env_cfg = task_registry.make_env(name=args.task, args=args)
     ppo_runner, train_cfg = task_registry.make_alg_runner(env=env, name=args.task, args=args)
+    task_registry.save_cfgs(name=args.task)
     ppo_runner.learn(num_learning_iterations=train_cfg.runner.max_iterations, init_at_random_ep_len=True)
 
 if __name__ == '__main__':
 
-    task_registry.register("Tita",LeggedRobot,TitaConstraintHimRoughCfg(),TitaConstraintHimRoughCfgPPO())
-    task_registry.register("Titatit",LeggedRobot,TitatiConstraintHimRoughCfg(),TitatiConstraintHimRoughCfgPPO())
+    task_registry.register("tita",LeggedRobot,TitaConstraintHimRoughCfg(),TitaConstraintHimRoughCfgPPO())
+    task_registry.register("titatit",LeggedRobot,TitatiConstraintHimRoughCfg(),TitatiConstraintHimRoughCfgPPO())
 
     args = get_args()
     train(args)

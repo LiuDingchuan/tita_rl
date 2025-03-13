@@ -1,4 +1,4 @@
-from configs.tita_constraint_him import TitaConstraintHimRoughCfg, TitaConstraintHimRoughCfgPPO
+from configs.tita_constraint_config import TitaConstraintHimRoughCfg, TitaConstraintHimRoughCfgPPO
 from configs.titati_constaint_config import TitatiConstraintHimRoughCfg, TitatiConstraintHimRoughCfgPPO
 
 import cv2

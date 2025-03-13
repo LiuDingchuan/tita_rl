@@ -1,3 +1,11 @@
+'''
+Description: 
+Version: 2.0
+Author: Dandelion
+Date: 2025-03-12 16:35:29
+LastEditTime: 2025-03-13 16:09:07
+FilePath: /tita_rl/configs/diablo_pluspro_config.py
+'''
 # SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 # 
@@ -30,7 +38,7 @@
 
 from configs.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
 
-class TitaConstraintHimRoughCfg( LeggedRobotCfg ):
+class DiabloPlusProCfg( LeggedRobotCfg ):
     class env(LeggedRobotCfg.env):
         num_envs = 4096
 
@@ -41,7 +49,7 @@ class TitaConstraintHimRoughCfg( LeggedRobotCfg ):
         num_observations = n_proprio + n_scan + history_len*n_proprio + n_priv_latent
 
     class init_state( LeggedRobotCfg.init_state ):
-        pos = [0.0, 0.0, 0.3] # x,y,z [m]
+        pos = [0.0, 0.0, 0.35] # x,y,z [m]
         rot = [0, 0.0, 0.0, 1]  # x, y, z, w [quat]
         lin_vel = [0.0, 0.0, 0.0]  # x, y, z [m/s]
         ang_vel = [0.0, 0.0, 0.0]  # x, y, z [rad/s]       
@@ -49,11 +57,11 @@ class TitaConstraintHimRoughCfg( LeggedRobotCfg ):
                 'joint_left_leg_1': 0,
                 'joint_right_leg_1': 0,
 
-                'joint_left_leg_2': 0.8,
-                'joint_right_leg_2': 0.8,
+                'joint_left_leg_2': 0.0,
+                'joint_right_leg_2': 0.0,
 
-                'joint_left_leg_3': -1.5,
-                'joint_right_leg_3': -1.5,
+                'joint_left_leg_3': 0.0,
+                'joint_right_leg_3': 0.0,
 
                 'joint_left_leg_4': 0,
                 'joint_right_leg_4': 0,
@@ -89,11 +97,11 @@ class TitaConstraintHimRoughCfg( LeggedRobotCfg ):
 
     class asset( LeggedRobotCfg.asset ):
 
-        file = '{ROOT_DIR}/resources/tita/urdf/tita_description.urdf'
-        foot_name = "leg_4"
-        name = "tita"
-        penalize_contacts_on = ["leg_3"]
-        terminate_after_contacts_on = ["base"]
+        file = '{ROOT_DIR}/resources/diablo_pluspro/urdf/diablo_pluspro.urdf'
+        foot_name = "wheel"
+        name = "diablo_pluspro"
+        penalize_contacts_on = ["hip_link","knee_link","base_link"]
+        terminate_after_contacts_on = ["base_link"]
         self_collisions = 0 # 1 to disable, 0 to enable...bitwise filter
         flip_visual_attachments = False
   
@@ -231,15 +239,15 @@ class TitaConstraintHimRoughCfgPPO( LeggedRobotCfgPPO ):
         imi_flag = True
       
     class runner( LeggedRobotCfgPPO.runner ):
-        run_name = 'test_barlowtwins_feetcontact'
-        experiment_name = 'flat_tita_constraint'
+        run_name = ''
+        experiment_name = 'diablo_pluspro'
         policy_class_name = 'ActorCriticBarlowTwins'
         runner_class_name = 'OnConstraintPolicyRunner'
         algorithm_class_name = 'NP3O'
         max_iterations = 10000
         num_steps_per_env = 24
-        resume = True
-        resume_path = 'tita_example_10000.pt'
+        resume = False
+        resume_path = ''
  
 
   
