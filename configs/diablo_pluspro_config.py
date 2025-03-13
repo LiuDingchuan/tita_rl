@@ -3,7 +3,7 @@ Description:
 Version: 2.0
 Author: Dandelion
 Date: 2025-03-12 16:35:29
-LastEditTime: 2025-03-13 16:09:07
+LastEditTime: 2025-03-13 20:52:41
 FilePath: /tita_rl/configs/diablo_pluspro_config.py
 '''
 # SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
@@ -43,8 +43,8 @@ class DiabloPlusProCfg( LeggedRobotCfg ):
         num_envs = 4096
 
         n_scan = 187
-        n_priv_latent =  4 + 1 + 8 + 8 + 8 + 6 + 1 + 2 + 1 - 3
-        n_proprio = 33
+        n_priv_latent = 30 # 3 + 2 + 1 + 4 + 1 + 1+ 6 + 6 + 6 
+        n_proprio = 27 # 3+3+3+6+6+6
         history_len = 10
         num_observations = n_proprio + n_scan + history_len*n_proprio + n_priv_latent
 
@@ -54,17 +54,12 @@ class DiabloPlusProCfg( LeggedRobotCfg ):
         lin_vel = [0.0, 0.0, 0.0]  # x, y, z [m/s]
         ang_vel = [0.0, 0.0, 0.0]  # x, y, z [rad/s]       
         default_joint_angles = {
-                'joint_left_leg_1': 0,
-                'joint_right_leg_1': 0,
-
-                'joint_left_leg_2': 0.0,
-                'joint_right_leg_2': 0.0,
-
-                'joint_left_leg_3': 0.0,
-                'joint_right_leg_3': 0.0,
-
-                'joint_left_leg_4': 0,
-                'joint_right_leg_4': 0,
+            "left_hip_joint": 0.0,
+            "left_knee_joint": 0.0,
+            "left_wheel_joint": 0.0,
+            "right_hip_joint": 0.0,
+            "right_knee_joint": 0.0,
+            "right_wheel_joint": 0.0,
         }
 
 
@@ -82,7 +77,7 @@ class DiabloPlusProCfg( LeggedRobotCfg ):
         use_filter = True
 
     class commands( LeggedRobotCfg.control ):
-        curriculum = False
+        curriculum = True
         max_curriculum = 1.
         num_commands = 4  # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
         resampling_time = 10.  # time before command are changed[s]
@@ -206,9 +201,10 @@ class DiabloPlusProCfg( LeggedRobotCfg ):
     class terrain(LeggedRobotCfg.terrain):
         mesh_type = 'trimesh'  # "heightfield" # none, plane, heightfield or trimesh
         measure_heights = True
-        include_act_obs_pair_buf = False
+        include_act_obs_pair_buf = False #是否包含动作观察对缓冲区
+        terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2]
 
-class TitaConstraintHimRoughCfgPPO( LeggedRobotCfgPPO ):
+class DiabloPlusProCfgPPO( LeggedRobotCfgPPO ):
     class algorithm( LeggedRobotCfgPPO.algorithm ):
         entropy_coef = 0.01
         learning_rate = 1.e-3

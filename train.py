@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from configs.tita_constraint_config import TitaConstraintHimRoughCfg, TitaConstraintHimRoughCfgPPO
 from configs.titati_constaint_config import TitatiConstraintHimRoughCfg, TitatiConstraintHimRoughCfgPPO
-
+from configs.diablo_pluspro_config import DiabloPlusProCfg, DiabloPlusProCfgPPO
 
 import isaacgym
 from utils.helpers import get_args
@@ -20,6 +20,6 @@ if __name__ == '__main__':
 
     task_registry.register("tita",LeggedRobot,TitaConstraintHimRoughCfg(),TitaConstraintHimRoughCfgPPO())
     task_registry.register("titatit",LeggedRobot,TitatiConstraintHimRoughCfg(),TitatiConstraintHimRoughCfgPPO())
-
+    task_registry.register("diablo_plus_pro",LeggedRobot,DiabloPlusProCfg(), DiabloPlusProCfgPPO())
     args = get_args()
     train(args)
