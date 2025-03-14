@@ -32,7 +32,7 @@ from configs.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
 
 class TitaConstraintHimRoughCfg( LeggedRobotCfg ):
     class env(LeggedRobotCfg.env):
-        num_envs = 100
+        num_envs = 4096
 
         n_scan = 187
         n_priv_latent =  4 + 1 + 8 + 8 + 8 + 6 + 1 + 2 + 1 - 3
@@ -238,7 +238,7 @@ class TitaConstraintHimRoughCfgPPO( LeggedRobotCfgPPO ):
         algorithm_class_name = 'NP3O'
         max_iterations = 10000
         num_steps_per_env = 24
-        resume = True
+        resume = False
         resume_path = 'tita_example_10000.pt'
  
 

@@ -48,7 +48,7 @@ class TaskRegistry():
                 ),
             os.path.join(
                 self.log_dir,
-                ROOT_DIR + "/configs/" + "{}_constraint_config.py".format(name),
+                ROOT_DIR + "/configs/" + "{}_config.py".format(name),
                 ),
         ]
         py_root = os.path.join(

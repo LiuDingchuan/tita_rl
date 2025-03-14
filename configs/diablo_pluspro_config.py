@@ -1,14 +1,15 @@
-'''
-Description: 
+"""
+Description:
 Version: 2.0
 Author: Dandelion
 Date: 2025-03-12 16:35:29
 LastEditTime: 2025-03-13 20:52:41
 FilePath: /tita_rl/configs/diablo_pluspro_config.py
-'''
+"""
+
 # SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -38,21 +39,23 @@ FilePath: /tita_rl/configs/diablo_pluspro_config.py
 
 from configs.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
 
-class DiabloPlusProCfg( LeggedRobotCfg ):
+
+class DiabloPlusProCfg(LeggedRobotCfg):
     class env(LeggedRobotCfg.env):
         num_envs = 4096
+        num_actions = 6 # 智能体在环境中可采取的动作数量
 
         n_scan = 187
-        n_priv_latent = 30 # 3 + 2 + 1 + 4 + 1 + 1+ 6 + 6 + 6 
-        n_proprio = 27 # 3+3+3+6+6+6
+        n_priv_latent = 30  # 3 + 2 + 1 + 4 + 1 + 1+ 6 + 6 + 6
+        n_proprio = 27  # 3+3+3+6+6+6
         history_len = 10
-        num_observations = n_proprio + n_scan + history_len*n_proprio + n_priv_latent
+        num_observations = n_proprio + n_scan + history_len * n_proprio + n_priv_latent
 
-    class init_state( LeggedRobotCfg.init_state ):
-        pos = [0.0, 0.0, 0.35] # x,y,z [m]
+    class init_state(LeggedRobotCfg.init_state):
+        pos = [0.0, 0.0, 0.75]  # x,y,z [m]
         rot = [0, 0.0, 0.0, 1]  # x, y, z, w [quat]
         lin_vel = [0.0, 0.0, 0.0]  # x, y, z [m/s]
-        ang_vel = [0.0, 0.0, 0.0]  # x, y, z [rad/s]       
+        ang_vel = [0.0, 0.0, 0.0]  # x, y, z [rad/s]
         default_joint_angles = {
             "left_hip_joint": 0.0,
             "left_knee_joint": 0.0,
@@ -62,12 +65,11 @@ class DiabloPlusProCfg( LeggedRobotCfg ):
             "right_wheel_joint": 0.0,
         }
 
-
-    class control( LeggedRobotCfg.control ):
+    class control(LeggedRobotCfg.control):
         # PD Drive parameters:
-        control_type = 'P'
-        stiffness = {'joint': 40}  # [N*m/rad]
-        damping = {'joint': 1.0}     # [N*m*s/rad]
+        control_type = "P"
+        stiffness = {"joint": 40}  # [N*m/rad]
+        damping = {"joint": 1.0}  # [N*m*s/rad]
         # action scale: target angle = actionScale * action + defaultAngle
         action_scale = 0.5
         # decimation: Number of control action updates @ sim DT per policy DT
@@ -76,11 +78,11 @@ class DiabloPlusProCfg( LeggedRobotCfg ):
 
         use_filter = True
 
-    class commands( LeggedRobotCfg.control ):
+    class commands(LeggedRobotCfg.control):
         curriculum = True
-        max_curriculum = 1.
+        max_curriculum = 1.0
         num_commands = 4  # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
-        resampling_time = 10.  # time before command are changed[s]
+        resampling_time = 10.0  # time before command are changed[s]
         heading_command = True  # if true: compute ang vel command from heading error
         global_reference = False
 
@@ -90,20 +92,23 @@ class DiabloPlusProCfg( LeggedRobotCfg ):
             ang_vel_yaw = [-1, 1]  # min max [rad/s]
             heading = [-3.14, 3.14]
 
-    class asset( LeggedRobotCfg.asset ):
+    class asset(LeggedRobotCfg.asset):
 
-        file = '{ROOT_DIR}/resources/diablo_pluspro/urdf/diablo_pluspro.urdf'
+        file = (
+            "{ROOT_DIR}/resources/diablo_pluspro_stand/urdf/diablo_pluspro_stand.urdf"
+        )
         foot_name = "wheel"
         name = "diablo_pluspro"
-        penalize_contacts_on = ["hip_link","knee_link","base_link"]
+        penalize_contacts_on = ["hip_link", "knee_link", "base_link"]
         terminate_after_contacts_on = ["base_link"]
-        self_collisions = 0 # 1 to disable, 0 to enable...bitwise filter
+        self_collisions = 0  # 1 to disable, 0 to enable...bitwise filter
         flip_visual_attachments = False
-  
-    class rewards( LeggedRobotCfg.rewards ):
+
+    class rewards(LeggedRobotCfg.rewards):
         soft_dof_pos_limit = 0.9
         base_height_target = 0.35
-        class scales( LeggedRobotCfg.rewards.scales ):
+
+        class scales(LeggedRobotCfg.rewards.scales):
             torques = 0.0
             powers = -2e-5
             termination = -200
@@ -118,18 +123,18 @@ class DiabloPlusProCfg( LeggedRobotCfg ):
             collision = -1.0
             feet_stumble = 0.0
             action_rate = -0.01
-            action_smoothness= 0
+            action_smoothness = 0
             stand_still = 0.0
-            foot_clearance= -0.0
-            orientation=-1.0
+            foot_clearance = -0.0
+            orientation = -1.0
 
-    class domain_rand( LeggedRobotCfg.domain_rand):
+    class domain_rand(LeggedRobotCfg.domain_rand):
         randomize_friction = True
         friction_range = [0.2, 2.75]
         randomize_restitution = True
-        restitution_range = [0.0,1.0]
+        restitution_range = [0.0, 1.0]
         randomize_base_mass = True
-        added_mass_range = [-1., 3.]
+        added_mass_range = [-1.0, 3.0]
         randomize_base_com = True
         added_com_range = [-0.1, 0.1]
         push_robots = True
@@ -149,8 +154,8 @@ class DiabloPlusProCfg( LeggedRobotCfg ):
         disturbance = False
         disturbance_range = [-30.0, 30.0]
         disturbance_interval = 8
-    
-    class depth( LeggedRobotCfg.depth):
+
+    class depth(LeggedRobotCfg.depth):
         use_camera = False
         camera_num_envs = 192
         camera_terrain_num_rows = 10
@@ -165,14 +170,14 @@ class DiabloPlusProCfg( LeggedRobotCfg ):
         resized = (87, 58)
         horizontal_fov = 87
         buffer_len = 2
-        
+
         near_clip = 0
         far_clip = 2
         dis_noise = 0.0
-        
+
         scale = 1
         invert = True
-    
+
     class costs:
         class scales:
             pos_limit = 0.3
@@ -180,51 +185,51 @@ class DiabloPlusProCfg( LeggedRobotCfg ):
             dof_vel_limits = 0.3
             # vel_smoothness = 0.1
             acc_smoothness = 0.1
-            #collision = 0.1
+            # collision = 0.1
             feet_contact_forces = 0.1
             stumble = 0.1
+
         class d_values:
             pos_limit = 0.0
             torque_limit = 0.0
             dof_vel_limits = 0.0
             # vel_smoothness = 0.0
             acc_smoothness = 0.0
-            #collision = 0.0
+            # collision = 0.0
             feet_contact_forces = 0.0
             stumble = 0.0
 
- 
-    
     class cost:
         num_costs = 6
-    
+
     class terrain(LeggedRobotCfg.terrain):
-        mesh_type = 'trimesh'  # "heightfield" # none, plane, heightfield or trimesh
+        mesh_type = "trimesh"  # "heightfield" # none, plane, heightfield or trimesh
         measure_heights = True
-        include_act_obs_pair_buf = False #是否包含动作观察对缓冲区
+        include_act_obs_pair_buf = False  # 是否包含动作观察对缓冲区
         terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2]
 
-class DiabloPlusProCfgPPO( LeggedRobotCfgPPO ):
-    class algorithm( LeggedRobotCfgPPO.algorithm ):
+
+class DiabloPlusProCfgPPO(LeggedRobotCfgPPO):
+    class algorithm(LeggedRobotCfgPPO.algorithm):
         entropy_coef = 0.01
-        learning_rate = 1.e-3
+        learning_rate = 1.0e-3
         max_grad_norm = 0.01
         num_learning_epochs = 5
-        num_mini_batches = 4 # mini batch size = num_envs*nsteps / nminibatches
+        num_mini_batches = 4  # mini batch size = num_envs*nsteps / nminibatches
         cost_value_loss_coef = 0.1
         cost_viol_loss_coef = 0.1
 
-    class policy( LeggedRobotCfgPPO.policy):
+    class policy(LeggedRobotCfgPPO.policy):
         init_noise_std = 1.0
         continue_from_last_std = True
         scan_encoder_dims = [128, 64, 32]
         actor_hidden_dims = [512, 256, 128]
         critic_hidden_dims = [512, 256, 128]
-        #priv_encoder_dims = [64, 20]
+        # priv_encoder_dims = [64, 20]
         priv_encoder_dims = []
-        activation = 'elu' # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
+        activation = "elu"  # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
         # only for 'ActorCriticRecurrent':
-        rnn_type = 'lstm'
+        rnn_type = "lstm"
         rnn_hidden_size = 512
         rnn_num_layers = 1
 
@@ -233,17 +238,14 @@ class DiabloPlusProCfgPPO( LeggedRobotCfgPPO ):
 
         teacher_act = True
         imi_flag = True
-      
-    class runner( LeggedRobotCfgPPO.runner ):
-        run_name = ''
-        experiment_name = 'diablo_pluspro'
-        policy_class_name = 'ActorCriticBarlowTwins'
-        runner_class_name = 'OnConstraintPolicyRunner'
-        algorithm_class_name = 'NP3O'
+
+    class runner(LeggedRobotCfgPPO.runner):
+        run_name = ""
+        experiment_name = "diablo_pluspro"
+        policy_class_name = "ActorCriticBarlowTwins"
+        runner_class_name = "OnConstraintPolicyRunner"
+        algorithm_class_name = "NP3O"
         max_iterations = 10000
         num_steps_per_env = 24
         resume = False
-        resume_path = ''
- 
-
-  
+        resume_path = ""

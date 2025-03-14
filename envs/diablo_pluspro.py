@@ -76,7 +76,9 @@ class DiabloPlusPro(BaseTask):
         net_contact_forces = self.gym.acquire_net_contact_force_tensor(self.sim)
         force_sensor_tensor = self.gym.acquire_force_sensor_tensor(self.sim)
         rigid_body_state_tensor = self.gym.acquire_rigid_body_state_tensor(self.sim)
-
+        if force_sensor_tensor is None:
+            raise ValueError("force_sensor_tensor is None. Ensure that the force sensors are properly initialized.")
+        
         self.gym.refresh_dof_state_tensor(self.sim)
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_net_contact_force_tensor(self.sim)
@@ -210,7 +212,7 @@ class DiabloPlusPro(BaseTask):
         self.num_dofs = len(self.dof_names)
         feet_names = [s for s in body_names if self.cfg.asset.foot_name in s]
 
-        for s in ["left_leg_4", "right_leg_4"]:
+        for s in ["left_wheel_link", "right_wheel_link"]:
             feet_idx = self.gym.find_asset_rigid_body_index(robot_asset, s)
             sensor_pose = gymapi.Transform(gymapi.Vec3(0.0, 0.0, 0.0))
             self.gym.create_asset_force_sensor(robot_asset, feet_idx, sensor_pose)
@@ -295,7 +297,7 @@ class DiabloPlusPro(BaseTask):
 
     def reindex(self,tensor):
         #sim2real purpose
-        return tensor[:,[4,5,6,7,0,1,2,3]]
+        return tensor[:,[3,4,5,0,1,2]]
     
     def reindex_feet(self,tensor):
         return tensor[:,[1,0]]
@@ -357,10 +359,8 @@ class DiabloPlusPro(BaseTask):
         noise_vec = torch.cat((torch.ones(3) * noise_scales.ang_vel * noise_level,
                                torch.ones(3) * noise_scales.gravity * noise_level,
                                torch.zeros(3),
-                               torch.ones(
-                                   8) * noise_scales.dof_pos * noise_level * self.obs_scales.dof_pos,
-                               torch.ones(
-                                   8) * noise_scales.dof_vel * noise_level * self.obs_scales.dof_vel,
+                               torch.ones(6) * noise_scales.dof_pos * noise_level * self.obs_scales.dof_pos,
+                               torch.ones(6) * noise_scales.dof_vel * noise_level * self.obs_scales.dof_vel,
                                #torch.ones(4) * noise_scales.contact_states * noise_level,
                                #torch.zeros(4),
                                torch.zeros(self.num_actions),
@@ -660,8 +660,8 @@ class DiabloPlusPro(BaseTask):
             actions = self._low_pass_action_filter(actions)
 
         #pd controller
-        actions_scaled = actions[:, :8] * self.cfg.control.action_scale
-        actions_scaled[:, [0, 4]] *= self.cfg.control.hip_scale_reduction
+        actions_scaled = actions[:, :6] * self.cfg.control.action_scale
+        actions_scaled[:, [0, 3]] *= self.cfg.control.hip_scale_reduction
         # actions_scaled[:, [3, 7, 11, 15]] *= 20.0
 
         # if self.cfg.domain_rand.randomize_lag_timesteps:
@@ -691,7 +691,7 @@ class DiabloPlusPro(BaseTask):
         else:
             raise NameError(f"Unknown controller type: {control_type}")
         # torques[:,[3, 7, 11, 15]] = self.kp_factor[:,[3, 7, 11, 15]] * 2*(actions_scaled[:,[3, 7, 11, 15]] - self.dof_vel[:,[3, 7, 11, 15]]) - self.kd_factor[:,[3, 7, 11, 15]] * 0.01*(self.dof_vel[:,[3, 7, 11, 15]] - self.last_dof_vel[:,[3, 7, 11, 15]])/self.sim_params.dt
-        torques[:,[3, 7]] = self.kp_factor[:,[3, 7]]  * 10*(joint_pos_target[:,[3, 7]]) - 0.5*self.kd_factor[:,[3, 7]] *(self.dof_vel[:,[3, 7]])
+        torques[:,[2, 5]] = self.kp_factor[:,[2, 5]]  * 10*(joint_pos_target[:,[2, 5]]) - 0.5*self.kd_factor[:,[2, 5]] *(self.dof_vel[:,[2, 5]])
         # torques[:,[3, 7, 11, 15]] = 0.5*self.kd_factor[:,[3, 7, 11, 15]]*(joint_pos_target[:,[3, 7, 11, 15]] - self.dof_vel[:,[3, 7, 11, 15]])
 
         torques = torques * self.motor_strength
@@ -1247,7 +1247,7 @@ class DiabloPlusPro(BaseTask):
         
     def _reward_stand_still(self):
         # Penalize motion at zero commands
-        return torch.sum(torch.abs(self.dof_pos[:, [0,1,2,4,5,6]] - self.default_dof_pos[:, [0,1,2,4,5,6]]), dim=1) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
+        return torch.sum(torch.abs(self.dof_pos[:, [0,1,3,4]] - self.default_dof_pos[:, [0,1,2,4,5,6]]), dim=1) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
 
     def _reward_feet_contact_forces(self):
         # penalize high contact forces
@@ -1331,7 +1331,7 @@ class DiabloPlusPro(BaseTask):
         return -self.projected_gravity[:,2]
 
     def _reward_stand_nice(self):
-        return torch.sum(torch.abs(self.dof_pos[:, [0, 1, 2, 4, 5, 6]] - self.default_dof_pos[:, [0, 1, 2, 4, 5, 6]]), dim=1) * (1 - self.projected_gravity[:,2]) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
+        return torch.sum(torch.abs(self.dof_pos[:, [0, 1, 3, 4]] - self.default_dof_pos[:, [0, 1, 3, 4]]), dim=1) * (1 - self.projected_gravity[:,2]) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
     
     def _reward_foot_relative_x(self):
         cur_footpos_translated = self.foot_positions - self.root_states[:, 0:3].unsqueeze(1)
@@ -1453,7 +1453,7 @@ class DiabloPlusPro(BaseTask):
         contact_filt = torch.logical_or(contact, self.last_contacts) 
         self.last_contacts = contact
 
-        foot_heights_cost = torch.sum(torch.square(self.dof_pos[:,[2,5,8,11]] - (-2.0)) * (~contact_filt),dim=1)
+        foot_heights_cost = torch.sum(torch.square(self.dof_pos[:,[2,5]] - (-2.0)) * (~contact_filt),dim=1)
  
         return foot_heights_cost
     
@@ -1480,6 +1480,4 @@ class DiabloPlusPro(BaseTask):
     
     
     
-    
-
     

@@ -6,6 +6,7 @@ import os
 
 from isaacgym import gymapi
 from envs import LeggedRobot
+from envs import DiabloPlusPro
 from modules import *
 from utils import  get_args, export_policy_as_jit, task_registry, Logger
 from configs import *
@@ -63,7 +64,7 @@ def play(args):
                                                       **policy_cfg_dict)
     print(policy)
     #model_dict = torch.load(os.path.join(ROOT_DIR, 'model_4000_phase2_hip.pt'))
-    model_dict = torch.load(os.path.join(ROOT_DIR, 'model_10000.pt'))
+    model_dict = torch.load(os.path.join(ROOT_DIR, 'model_7000.pt'))
     policy.load_state_dict(model_dict['model_state_dict'])
     policy = policy.to(env.device)
     policy.save_torch_jit_policy('model.pt',env.device)
@@ -131,7 +132,9 @@ def play(args):
 if __name__ == '__main__':
     task_registry.register("Tita",LeggedRobot,TitaConstraintHimRoughCfg(),TitaConstraintHimRoughCfgPPO())
     task_registry.register("Titatit",LeggedRobot,TitatiConstraintHimRoughCfg(),TitatiConstraintHimRoughCfgPPO())
-
+    task_registry.register(
+        "diablo_pluspro", DiabloPlusPro, DiabloPlusProCfg(), DiabloPlusProCfgPPO()
+    )
     RECORD_FRAMES = True
     args = get_args()
     play(args)
