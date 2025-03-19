@@ -1,5 +1,6 @@
 from configs.tita_constraint_config import TitaConstraintHimRoughCfg, TitaConstraintHimRoughCfgPPO
 from configs.titati_constaint_config import TitatiConstraintHimRoughCfg, TitatiConstraintHimRoughCfgPPO
+from configs.diablo_pluspro_config import DiabloPlusProCfg, DiabloPlusProCfgPPO
 
 import cv2
 import os
@@ -33,11 +34,11 @@ def play(args):
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     # override some parameters for testing
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, 100)
+    env_cfg.terrain.mesh_type = "trimesh"
     env_cfg.terrain.num_rows = 5
     env_cfg.terrain.num_cols = 5
     env_cfg.terrain.curriculum = False
     env_cfg.noise.add_noise = False
-    # env_cfg.terrain.mesh_type = 'plane'
     env_cfg.domain_rand.push_robots = False
     #env_cfg.domain_rand.randomize_friction = False
     env_cfg.domain_rand.randomize_base_com = False
@@ -64,10 +65,32 @@ def play(args):
                                                       **policy_cfg_dict)
     print(policy)
     #model_dict = torch.load(os.path.join(ROOT_DIR, 'model_4000_phase2_hip.pt'))
-    model_dict = torch.load(os.path.join(ROOT_DIR, 'model_7000.pt'))
-    policy.load_state_dict(model_dict['model_state_dict'])
-    policy = policy.to(env.device)
-    policy.save_torch_jit_policy('model.pt',env.device)
+    #################新方法，从最新一次的路径直接加载模型，且会根据task名字自动检索#################
+    train_cfg.runner.resume = True
+    n3po_runner, train_cfg = task_registry.make_alg_runner(
+        env=env, name=args.task, args=args, train_cfg=train_cfg
+    )
+    policy = n3po_runner.alg.actor_critic.to(env.device)
+    # policy = n3po_runner.get_inference_policy(device=env.device) #这个函数返回函数不太对，actor_critic被改动过
+    if EXPORT_POLICY:
+        path = os.path.join(
+            ROOT_DIR,
+            "logs",
+            train_cfg.runner.experiment_name,
+            "exported",
+            "policies",
+            "model.pt",
+        )
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        policy.save_torch_jit_policy(path, env.device)
+        # export_policy_as_jit(n3po_runner.alg.actor_critic, path)
+        print("Exported policy as jit script to: ", path)
+
+    #################老方法，从指定路径加载模型#################
+    # model_dict = torch.load(os.path.join(ROOT_DIR, 'model_7100.pt'))
+    # policy.load_state_dict(model_dict['model_state_dict'])
+    # policy = policy.to(env.device)
+    # policy.save_torch_jit_policy('model.pt',env.device)
 
     # clear images under frames folder
     # frames_path = os.path.join(ROOT_DIR, 'logs', train_cfg.runner.experiment_name, 'exported', 'frames')
@@ -136,5 +159,6 @@ if __name__ == '__main__':
         "diablo_pluspro", DiabloPlusPro, DiabloPlusProCfg(), DiabloPlusProCfgPPO()
     )
     RECORD_FRAMES = True
+    EXPORT_POLICY = True
     args = get_args()
     play(args)

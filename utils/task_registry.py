@@ -137,6 +137,7 @@ class TaskRegistry():
         if log_root=="default":
             log_root = os.path.join(ROOT_DIR, 'logs', train_cfg.runner.experiment_name)
             self.log_dir = os.path.join(log_root, datetime.now().strftime('%b%d_%H-%M-%S') + '_' + train_cfg.runner.run_name)
+            print(log_root)
         elif log_root is None:
             self.log_dir = None
         else:
@@ -145,12 +146,12 @@ class TaskRegistry():
         runner_class = eval(train_cfg.runner.runner_class_name)
         runner = runner_class(env, train_cfg_dict, self.log_dir, device=args.rl_device)
         #save resume path before creating a new log_dir
-        # resume = train_cfg.runner.resume
-        # if resume:
-        #     # load previously trained model
-        #     resume_path = get_load_path(log_root, load_run=train_cfg.runner.load_run, checkpoint=train_cfg.runner.checkpoint)
-        #     print(f"Loading model from: {resume_path}")
-        #     runner.load(resume_path)
+        resume = train_cfg.runner.resume
+        if resume:
+            # load previously trained model
+            resume_path = get_load_path(log_root, load_run=train_cfg.runner.load_run, checkpoint=train_cfg.runner.checkpoint)
+            print(f"Loading model from: {resume_path}")
+            runner.load(resume_path)
         return runner, train_cfg
 
 # make global task registry

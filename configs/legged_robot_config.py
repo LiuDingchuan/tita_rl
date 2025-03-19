@@ -294,4 +294,6 @@ class LeggedRobotCfgPPO(BaseConfig):
         # load and resume
         resume = False
         resume_path = None # updated from load_run and chkpt
+        load_run = -1
+        checkpoint = -1
     

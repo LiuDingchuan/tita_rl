@@ -40,12 +40,11 @@ class OnConstraintPolicyRunner:
                                                       self.env.cfg.env.history_len,
                                                       self.env.num_actions,
                                                       **self.policy_cfg)
-        if self.cfg['resume']:
-            model_dict = torch.load(os.path.join(ROOT_DIR, self.cfg['resume_path']))
-            actor_critic.load_state_dict(model_dict['model_state_dict'])
+        # if self.cfg['resume']:
+        #     model_dict = torch.load(os.path.join(ROOT_DIR, self.cfg['resume_path']))
+        #     actor_critic.load_state_dict(model_dict['model_state_dict'])
         
-        actor_critic.to(self.device)
-        
+        # actor_critic.to(self.device)      
 
         # Depth encoder
         self.if_depth = self.depth_encoder_cfg["if_depth"]
@@ -278,7 +277,7 @@ class OnConstraintPolicyRunner:
         print("Loading model from {}...".format(path))
         loaded_dict = torch.load(path, map_location=self.device)
         self.alg.actor_critic.load_state_dict(loaded_dict['model_state_dict'])
-        self.alg.estimator.load_state_dict(loaded_dict['estimator_state_dict'])
+        # self.alg.estimator.load_state_dict(loaded_dict['estimator_state_dict'])
         if self.if_depth:
             if 'depth_encoder_state_dict' not in loaded_dict:
                 warnings.warn("'depth_encoder_state_dict' key does not exist, not loading depth encoder...")
@@ -293,7 +292,7 @@ class OnConstraintPolicyRunner:
                 self.alg.depth_actor.load_state_dict(self.alg.actor_critic.actor.state_dict())
         if load_optimizer:
             self.alg.optimizer.load_state_dict(loaded_dict['optimizer_state_dict'])
-        # self.current_learning_iteration = loaded_dict['iter']
+        self.current_learning_iteration = loaded_dict['iter']
         print("*" * 80)
         return loaded_dict['infos']
 

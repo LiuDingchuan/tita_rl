@@ -52,7 +52,7 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         num_observations = n_proprio + n_scan + history_len * n_proprio + n_priv_latent
 
     class init_state(LeggedRobotCfg.init_state):
-        pos = [0.0, 0.0, 0.75]  # x,y,z [m]
+        pos = [0.0, 0.0, 0.7]  # x,y,z [m]
         rot = [0, 0.0, 0.0, 1]  # x, y, z, w [quat]
         lin_vel = [0.0, 0.0, 0.0]  # x, y, z [m/s]
         ang_vel = [0.0, 0.0, 0.0]  # x, y, z [rad/s]
