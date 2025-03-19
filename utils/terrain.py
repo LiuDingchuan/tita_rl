@@ -117,7 +117,7 @@ class Terrain:
 
         if choice < 0.5:
             step_height *= -1
-        terrain_utils.pyramid_stairs_terrain(terrain, step_width=0.61, step_height=0.5 * step_height,
+        terrain_utils.pyramid_stairs_terrain(terrain, step_width=0.61, step_height=0.6 * step_height,
                                                     platform_size=3.)
 
         return terrain

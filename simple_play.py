@@ -2,15 +2,15 @@ from configs.tita_constraint_config import TitaConstraintHimRoughCfg, TitaConstr
 from configs.titati_constaint_config import TitatiConstraintHimRoughCfg, TitatiConstraintHimRoughCfgPPO
 from configs.diablo_pluspro_config import DiabloPlusProCfg, DiabloPlusProCfgPPO
 
-import cv2
+# import cv2
 import os
 
 from isaacgym import gymapi
 from envs import LeggedRobot
 from envs import DiabloPlusPro
 from modules import *
-from utils import  get_args, export_policy_as_jit, task_registry, Logger
 from configs import *
+from utils import  get_args, export_policy_as_jit, task_registry, Logger
 from utils.helpers import class_to_dict
 from utils.task_registry import task_registry
 import numpy as np
@@ -29,6 +29,95 @@ def delete_files_in_directory(directory_path):
      print("All files deleted successfully.")
    except OSError:
      print("Error occurred while deleting files.")
+
+def log_and_plot_states(env, env_cfg, obs, infos, actions, logger, i):
+    #--- param used for plot and log states ---#
+    robot_index = 0  # which robot is used for logging
+    joint_index = 1  # which joint is used for logging
+    stop_state_log = 1000  # number of steps before plotting states
+    stop_rew_log = (
+        env.max_episode_length + 1
+    )  # number of steps before print average episode rewards
+    latent = None
+    CoM_offset_compensate = False
+    # vel_err_intergral = torch.zeros(env.num_envs, device=env.device)
+    vel_cmd = torch.zeros(env.num_envs, device=env.device)
+    if i < stop_state_log:
+        print("step:", i, "env.dt:", env.dt)
+        logger.log_states(
+            {
+                "dof_pos_target": actions[robot_index, joint_index].item()
+                * env.cfg.control.action_scale
+                + env.default_dof_pos[robot_index, joint_index].item(),
+                "dof_pos": env.dof_pos[robot_index, joint_index].item(),
+                "dof_vel": env.dof_vel[robot_index, joint_index].item(),
+                "dof_torque": env.torques[robot_index, joint_index].item(),
+                "command_yaw": env.commands[robot_index, 1].item(),
+                "command_height": env.commands[robot_index, 2].item(),
+                # "base_height": env.base_height[robot_index].item(),
+                "base_vel_x": env.base_lin_vel[robot_index, 0].item(),
+                "base_vel_y": env.base_lin_vel[robot_index, 1].item(),
+                "base_vel_z": env.base_lin_vel[robot_index, 2].item(),
+                "base_vel_yaw": env.base_ang_vel[robot_index, 2].item(),
+                "contact_forces_z": env.contact_forces[
+                    robot_index, env.feet_indices, 2
+                ]
+                .cpu()
+                .numpy(),
+            }
+        )
+        if CoM_offset_compensate:
+            logger.log_states({"command_x": vel_cmd[robot_index].item()})
+        else:
+            logger.log_states({"command_x": env.commands[robot_index, 0].item()})
+        if latent is not None:
+            logger.log_states(
+                {
+                    "est_lin_vel_x": latent[robot_index, 0].item()
+                    / env.cfg.normalization.obs_scales.lin_vel,
+                    "est_lin_vel_y": latent[robot_index, 1].item()
+                    / env.cfg.normalization.obs_scales.lin_vel,
+                    "est_lin_vel_z": latent[robot_index, 2].item()
+                    / env.cfg.normalization.obs_scales.lin_vel,
+                }
+            )
+            if latent.shape[1] > 3 and env_cfg.noise.add_noise:
+                logger.log_states(
+                    {
+                        "base_vel_yaw_obs": obs[robot_index, 2].item()
+                        / env.cfg.normalization.obs_scales.ang_vel,
+                        "dof_pos_obs": obs[robot_index, 9 + joint_index].item()
+                        / env.cfg.normalization.obs_scales.dof_pos
+                        + env.default_dof_pos[robot_index, joint_index].item(),
+                        "dof_vel_obs": obs[robot_index, 15 + joint_index].item()
+                        / env.cfg.normalization.obs_scales.dof_vel,
+                    }
+                )
+                logger.log_states(
+                    {
+                        "base_vel_yaw_est": latent[robot_index, 3 + 2].item()
+                        / env.cfg.normalization.obs_scales.ang_vel,
+                        "dof_pos_est": latent[
+                            robot_index, 3 + 9 + joint_index
+                        ].item()
+                        / env.cfg.normalization.obs_scales.dof_pos
+                        + env.default_dof_pos[robot_index, joint_index].item(),
+                        "dof_vel_est": latent[
+                            robot_index, 3 + 15 + joint_index
+                        ].item()
+                        / env.cfg.normalization.obs_scales.dof_vel,
+                    }
+                )
+    elif i == stop_state_log:
+        print("START PLOTTING STATES")
+        logger.plot_states()
+    if 0 < i < stop_rew_log:
+        if infos["episode"]:
+            num_episodes = torch.sum(env.reset_buf).item()
+            if num_episodes > 0:
+                logger.log_rewards(infos["episode"], num_episodes)
+    elif i == stop_rew_log:
+        logger.print_rewards()
 
 def play(args):
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
@@ -111,7 +200,7 @@ def play(args):
     img_idx = 0
 
     video_duration = 40
-    num_frames = int(video_duration / env.dt)
+    num_frames = int(video_duration / env.dt)# 40/0.01
     print(f'gathering {num_frames} frames')
     video = None
 
@@ -124,7 +213,7 @@ def play(args):
     xy_vel = 0
     feet_air_time = 0
 
-
+    logger = Logger(env.dt)
     for i in range(num_frames):
         action_rate += torch.sum(torch.abs(env.last_actions - env.actions),dim=1)
         z_vel += torch.square(env.base_lin_vel[:, 2])
@@ -146,19 +235,23 @@ def play(args):
                 video = cv2.VideoWriter('record.mp4', cv2.VideoWriter_fourcc(*'MP4V'), int(1 / env.dt), (img.shape[1],img.shape[0]))
             video.write(img)
             img_idx += 1 
+
+        log_and_plot_states(env, env_cfg, obs, infos, actions, logger, i)
+
     print("action rate:",action_rate/num_frames)
     print("z vel:",z_vel/num_frames)
     print("xy_vel:",xy_vel/num_frames)
     print("feet air reward",feet_air_time/num_frames)
 
     video.release()
+
 if __name__ == '__main__':
     task_registry.register("Tita",LeggedRobot,TitaConstraintHimRoughCfg(),TitaConstraintHimRoughCfgPPO())
     task_registry.register("Titatit",LeggedRobot,TitatiConstraintHimRoughCfg(),TitatiConstraintHimRoughCfgPPO())
     task_registry.register(
         "diablo_pluspro", DiabloPlusPro, DiabloPlusProCfg(), DiabloPlusProCfgPPO()
     )
-    RECORD_FRAMES = True
+    RECORD_FRAMES = False
     EXPORT_POLICY = True
     args = get_args()
     play(args)

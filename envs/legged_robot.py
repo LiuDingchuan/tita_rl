@@ -14,7 +14,7 @@ from utils.terrain import Terrain
 from utils.math import quat_apply_yaw, wrap_to_pi, get_scale_shift
 from utils.helpers import class_to_dict
 import torchvision
-import cv2
+# import cv2
 
 # config
 from configs import LeggedRobotCfg
