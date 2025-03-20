@@ -1,7 +1,3 @@
-from configs.tita_constraint_config import TitaConstraintHimRoughCfg, TitaConstraintHimRoughCfgPPO
-from configs.titati_constaint_config import TitatiConstraintHimRoughCfg, TitatiConstraintHimRoughCfgPPO
-from configs.diablo_pluspro_config import DiabloPlusProCfg, DiabloPlusProCfgPPO
-
 # import cv2
 import os
 
@@ -43,7 +39,7 @@ def log_and_plot_states(env, env_cfg, obs, infos, actions, logger, i):
     # vel_err_intergral = torch.zeros(env.num_envs, device=env.device)
     vel_cmd = torch.zeros(env.num_envs, device=env.device)
     if i < stop_state_log:
-        print("step:", i, "env.dt:", env.dt)
+        # print("step:", i, "env.dt:", env.dt)
         logger.log_states(
             {
                 "dof_pos_target": actions[robot_index, joint_index].item()
@@ -168,11 +164,9 @@ def play(args):
             train_cfg.runner.experiment_name,
             "exported",
             "policies",
-            "model.pt",
         )
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        policy.save_torch_jit_policy(path, env.device)
-        # export_policy_as_jit(n3po_runner.alg.actor_critic, path)
+        policy.save_torch_jit_policy(path, env.device) #保存模型为jit script，libtorch可以加载
         print("Exported policy as jit script to: ", path)
 
     #################老方法，从指定路径加载模型#################

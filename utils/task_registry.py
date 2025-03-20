@@ -26,14 +26,15 @@ class TaskRegistry():
     
     def get_task_class(self, name: str) -> VecEnv:
         return self.task_classes[name]
-    
+    #`Tuple` 类型注解用于指定函数返回值的类型和结构，提高代码的可读性和可维护性，并帮助捕获类型错误。
+    # 在 `get_cfgs` 函数中，表示该函数返回一个包含两个元素的元组，第一个元素的类型是 `LeggedRobotCfg`，第二个元素的类型是 `LeggedRobotCfgPPO`。
     def get_cfgs(self, name) -> Tuple[LeggedRobotCfg, LeggedRobotCfgPPO]:
         train_cfg = self.train_cfgs[name]
         env_cfg = self.env_cfgs[name]
         # copy seed
         env_cfg.seed = train_cfg.seed
         return env_cfg, train_cfg
-    
+
     def save_cfgs(self, name) -> Tuple[LeggedRobotCfg, LeggedRobotCfgPPO]:
         os.mkdir(self.log_dir)
 

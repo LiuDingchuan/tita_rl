@@ -518,7 +518,7 @@ class ActorCriticRMA(nn.Module):
         self.priv_encoder.eval()
     
     def save_torch_jit_policy(self,path,device):
-        print("ActorCriticRMA")
+        print("use_ActorCriticRMA")
         obs_demo_input = torch.randn(1,self.num_prop).to(device)
         hist_demo_input = torch.randn(1,self.num_hist,self.num_prop).to(device)
         model_jit = torch.jit.trace(self.actor_student_backbone,(obs_demo_input,hist_demo_input))
@@ -713,14 +713,15 @@ class ActorCriticBarlowTwins(nn.Module):
         pass
     
     def save_torch_jit_policy(self,path,device):
+        print("use_ActorCriticBarlowTwins")
         obs_demo_input = torch.randn(1,self.num_prop).to(device)
         hist_demo_input = torch.randn(1,self.num_hist,self.num_prop).to(device)
         model_jit = torch.jit.trace(self.actor_teacher_backbone,(obs_demo_input,hist_demo_input))
-        model_jit.save(path)
+        model_jit.save(f"{path}/sim2sim.pt")
         torch_out = torch.onnx.export(self.actor_teacher_backbone,
-                            (obs_demo_input,hist_demo_input),
-                            "test.onnx",
-                            verbose=True,
-                            export_params=True
-                            )
+                    (obs_demo_input,hist_demo_input),
+                    f"{path}/sim2sim.onnx",
+                    verbose=True,
+                    export_params=True
+                    )
         
