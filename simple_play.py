@@ -118,7 +118,7 @@ def log_and_plot_states(env, env_cfg, obs, infos, actions, logger, i):
 def play(args):
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     # override some parameters for testing
-    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 100)
+    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 30)
     env_cfg.terrain.mesh_type = "trimesh"
     env_cfg.terrain.num_rows = 5
     env_cfg.terrain.num_cols = 5
@@ -213,7 +213,7 @@ def play(args):
         z_vel += torch.square(env.base_lin_vel[:, 2])
         xy_vel += torch.sum(torch.square(env.base_ang_vel[:, :2]), dim=1)
 
-        env.commands[:,0] = 1
+        env.commands[:,0] = 0.0
         env.commands[:,1] = 0
         env.commands[:,2] = 0
         env.commands[:,3] = 0
@@ -230,7 +230,7 @@ def play(args):
             video.write(img)
             img_idx += 1 
 
-        log_and_plot_states(env, env_cfg, obs, infos, actions, logger, i)
+        # log_and_plot_states(env, env_cfg, obs, infos, actions, logger, i)
 
     print("action rate:",action_rate/num_frames)
     print("z vel:",z_vel/num_frames)

@@ -238,7 +238,7 @@ class TitaConstraintHimRoughCfgPPO( LeggedRobotCfgPPO ):
         algorithm_class_name = 'NP3O'
         max_iterations = 10000
         num_steps_per_env = 24
-        resume = True
+        resume = False
         resume_path = 'tita_example_10000.pt'
  
 

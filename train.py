@@ -32,13 +32,7 @@ def train(args):
 
 if __name__ == "__main__":
     task_registry.register(
-        "tita", LeggedRobot, TitaConstraintHimRoughCfg(), TitaConstraintHimRoughCfgPPO()
-    )
-    task_registry.register(
-        "titatit",
-        LeggedRobot,
-        TitatiConstraintHimRoughCfg(),
-        TitatiConstraintHimRoughCfgPPO(),
+        "tita_constraint", LeggedRobot, TitaConstraintHimRoughCfg(), TitaConstraintHimRoughCfgPPO()
     )
     task_registry.register(
         "diablo_pluspro", DiabloPlusPro, DiabloPlusProCfg(), DiabloPlusProCfgPPO()
