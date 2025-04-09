@@ -149,7 +149,6 @@ def play(args):
                                                       env.num_actions,
                                                       **policy_cfg_dict)
     print(policy)
-    #model_dict = torch.load(os.path.join(ROOT_DIR, 'model_4000_phase2_hip.pt'))
     #################新方法，从最新一次的路径直接加载模型，且会根据task名字自动检索#################
     train_cfg.runner.resume = True
     n3po_runner, train_cfg = task_registry.make_alg_runner(
@@ -213,7 +212,7 @@ def play(args):
         z_vel += torch.square(env.base_lin_vel[:, 2])
         xy_vel += torch.sum(torch.square(env.base_ang_vel[:, :2]), dim=1)
 
-        env.commands[:,0] = 0.0
+        env.commands[:,0] = 1.0
         env.commands[:,1] = 0
         env.commands[:,2] = 0
         env.commands[:,3] = 0
@@ -230,7 +229,7 @@ def play(args):
             video.write(img)
             img_idx += 1 
 
-        # log_and_plot_states(env, env_cfg, obs, infos, actions, logger, i)
+        log_and_plot_states(env, env_cfg, obs, infos, actions, logger, i)
 
     print("action rate:",action_rate/num_frames)
     print("z vel:",z_vel/num_frames)

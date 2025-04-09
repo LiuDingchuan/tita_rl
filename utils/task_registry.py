@@ -45,6 +45,10 @@ class TaskRegistry():
                 ),
             os.path.join(
                 self.log_dir,
+                ENVS_DIR + "/{}.py".format(name),
+                ),
+            os.path.join(
+                self.log_dir,
                 ROOT_DIR + "/configs/legged_robot_config.py",
                 ),
             os.path.join(

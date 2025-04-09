@@ -108,6 +108,7 @@ class LeggedRobotCfg(BaseConfig):
         damping = {'joint_a': 1.0, 'joint_b': 1.5}  # [N*m*s/rad]
         # action scale: target angle = actionScale * action + defaultAngle
         action_scale = 0.5
+        action_scale_vel = 10
         # decimation: Number of control action updates @ sim DT per policy DT
         decimation = 4
 
@@ -125,7 +126,7 @@ class LeggedRobotCfg(BaseConfig):
         fix_base_link = False  # fixe the base of the robot
         default_dof_drive_mode = 3  # see GymDofDriveModeFlags (0 is none, 1 is pos tgt, 2 is vel tgt, 3 effort)
         self_collisions = 0  # 1 to disable, 0 to enable...bitwise filter
-        replace_cylinder_with_capsule = False  # replace collision cylinders with capsules, leads to faster/more stable simulation
+        replace_cylinder_with_capsule = True  # replace collision cylinders with capsules, leads to faster/more stable simulation
         flip_visual_attachments = False  # Some .obj meshes must be flipped from y-up to z-up
 
         density = 0.001
@@ -294,6 +295,6 @@ class LeggedRobotCfgPPO(BaseConfig):
         # load and resume
         resume = False
         resume_path = None # updated from load_run and chkpt
-        load_run = -1
-        checkpoint = -1
+        load_run = -1 # -1 = last run
+        checkpoint = -1 # -1 = last saved model
     

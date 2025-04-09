@@ -52,7 +52,7 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         num_observations = n_proprio + n_scan + history_len * n_proprio + n_priv_latent
 
     class init_state(LeggedRobotCfg.init_state):
-        pos = [0.0, 0.0, 0.3]  # x,y,z [m]
+        pos = [0.0, 0.0, 0.45]  # x,y,z [m]
         rot = [0, 0.0, 0.0, 1]  # x, y, z, w [quat]
         lin_vel = [0.0, 0.0, 0.0]  # x, y, z [m/s]
         ang_vel = [0.0, 0.0, 0.0]  # x, y, z [rad/s]
@@ -68,10 +68,11 @@ class DiabloPlusProCfg(LeggedRobotCfg):
     class control(LeggedRobotCfg.control):
         # PD Drive parameters:
         control_type = "P"
-        stiffness = {"hip_joint": 40, "knee_joint": 40, "wheel": 10}  # [N*m/rad]
+        stiffness = {"hip_joint": 40, "knee_joint": 40, "wheel": 0.0}  # [N*m/rad]
         damping = {"hip_joint": 1.0, "knee_joint": 1.0, "wheel": 0.5}  # [N*m*s/rad]
         # action scale: target angle = actionScale * action + defaultAngle
         action_scale = 0.5
+        action_scale_vel = 10
         # decimation: Number of control action updates @ sim DT per policy DT
         decimation = 4
         hip_scale_reduction = 0.5
@@ -106,7 +107,7 @@ class DiabloPlusProCfg(LeggedRobotCfg):
 
     class rewards(LeggedRobotCfg.rewards):
         soft_dof_pos_limit = 0.9
-        base_height_target = 0.25
+        base_height_target = 0.35
 
         class scales(LeggedRobotCfg.rewards.scales):
             torques = 0.0
@@ -130,13 +131,13 @@ class DiabloPlusProCfg(LeggedRobotCfg):
 
     class domain_rand(LeggedRobotCfg.domain_rand):
         randomize_friction = True
-        friction_range = [0.2, 2.75]
+        friction_range = [0.5, 1.5]
         randomize_restitution = True
         restitution_range = [0.0, 1.0]
         randomize_base_mass = True
         added_mass_range = [-1.0, 3.0]
         randomize_base_com = True
-        added_com_range = [-0.1, 0.1]
+        added_com_range = [-0.15, 0.15]
         push_robots = True
         push_interval_s = 15
         max_push_vel_xy = 1
