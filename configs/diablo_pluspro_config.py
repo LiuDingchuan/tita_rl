@@ -68,7 +68,7 @@ class DiabloPlusProCfg(LeggedRobotCfg):
     class control(LeggedRobotCfg.control):
         # PD Drive parameters:
         control_type = "P"
-        stiffness = {"hip_joint": 40, "knee_joint": 40, "wheel": 0.0}  # [N*m/rad]
+        stiffness = {"hip_joint": 40, "knee_joint": 40, "wheel": 10.0}  # [N*m/rad]
         damping = {"hip_joint": 1.0, "knee_joint": 1.0, "wheel": 0.5}  # [N*m*s/rad]
         # action scale: target angle = actionScale * action + defaultAngle
         action_scale = 0.5
@@ -104,30 +104,36 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         terminate_after_contacts_on = ["base_link"]
         self_collisions = 0  # 1 to disable, 0 to enable...bitwise filter
         flip_visual_attachments = False
+        replace_cylinder_with_capsule = True
 
     class rewards(LeggedRobotCfg.rewards):
         soft_dof_pos_limit = 0.9
-        base_height_target = 0.35
+        base_height_target = 0.45
+        foot_x_position_sigma = 0.01 #越小对x的约束越强
 
         class scales(LeggedRobotCfg.rewards.scales):
             torques = 0.0
             powers = -2e-5
-            termination = -200
-            tracking_lin_vel = 1.0
-            tracking_ang_vel = 0.5
+            termination = -100
+            tracking_lin_vel = 2.0
+            tracking_ang_vel = 1.0
             lin_vel_z = -0.0
             ang_vel_xy = -0.05
             dof_vel = 0.0
             dof_acc = -2.5e-7
-            base_height = -1.0
+            base_height = -5.0
             feet_air_time = 0.0
             collision = -1.0
-            feet_stumble = 0.0
+            stumble = 0.0
             action_rate = -0.01
             action_smoothness = 0
-            stand_still = 0.0
+            stand_still = -2.0 #要给负值才能有起到使其在0输入时关节少动的效果
             foot_clearance = -0.0
-            orientation = -1.0
+            orientation = -10.0
+            stand_nice = 0.0
+            same_foot_x_position = 1.0
+            inclination = 0.0
+
 
     class domain_rand(LeggedRobotCfg.domain_rand):
         randomize_friction = True
@@ -184,7 +190,7 @@ class DiabloPlusProCfg(LeggedRobotCfg):
             pos_limit = 0.3
             torque_limit = 0.3
             dof_vel_limits = 0.3
-            # vel_smoothness = 0.1
+            vel_smoothness = 0.1
             acc_smoothness = 0.1
             # collision = 0.1
             feet_contact_forces = 0.1
@@ -194,20 +200,21 @@ class DiabloPlusProCfg(LeggedRobotCfg):
             pos_limit = 0.0
             torque_limit = 0.0
             dof_vel_limits = 0.0
-            # vel_smoothness = 0.0
+            vel_smoothness = 0.0
             acc_smoothness = 0.0
             # collision = 0.0
             feet_contact_forces = 0.0
             stumble = 0.0
 
     class cost:
-        num_costs = 6
+        num_costs = 7
 
     class terrain(LeggedRobotCfg.terrain):
-        mesh_type = "trimesh"  # "heightfield" # none, plane, heightfield or trimesh
+        mesh_type = "plane"  # "heightfield" # none, plane, heightfield or trimesh
         measure_heights = True
         include_act_obs_pair_buf = False  # 是否包含动作观察对缓冲区
-        terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2]
+        terrain_proportions = [0.1, 0.2, 0.35, 0.35, 0.0]
+        # terrain_proportions = [0.0, 0.0, 1.0, 0.0, 0.0]
 
 
 class DiabloPlusProCfgPPO(LeggedRobotCfgPPO):
@@ -235,13 +242,13 @@ class DiabloPlusProCfgPPO(LeggedRobotCfgPPO):
         rnn_num_layers = 1
 
         tanh_encoder_output = False
-        num_costs = 6
+        num_costs = 7
 
         teacher_act = True
         imi_flag = True
 
     class runner(LeggedRobotCfgPPO.runner):
-        run_name = ""
+        run_name = "plane"
         experiment_name = "diablo_pluspro"
         policy_class_name = "ActorCriticBarlowTwins"
         runner_class_name = "OnConstraintPolicyRunner"

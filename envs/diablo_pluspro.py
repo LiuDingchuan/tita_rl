@@ -3,7 +3,7 @@ Description:
 Version: 2.0
 Author: Dandelion
 Date: 2025-03-13 18:16:15
-LastEditTime: 2025-04-08 15:09:34
+LastEditTime: 2025-04-14 15:16:46
 FilePath: /tita_rl/envs/diablo_pluspro.py
 '''
 import numpy as np
@@ -690,9 +690,9 @@ class DiabloPlusPro(BaseTask):
             torques = actions_scaled
         else:
             raise NameError(f"Unknown controller type: {control_type}")
-        torques[:,[2, 5]] = self.kd_factor[:,[2, 5]] * self.d_gains[[2, 5]] * (actions[:,[2,5]] * self.cfg.control.action_scale_vel - self.dof_vel[:,[2, 5]])
-        # torques[:,[2, 5]] = self.kp_factor[:,[2, 5]]  * self.p_gains[[2, 5]] * (joint_pos_target[:,[2, 5]]) - self.kd_factor[:,[2, 5]] * self.d_gains[[2, 5]] * (self.dof_vel[:,[2, 5]])
-
+        # torques[:,[2, 5]] = self.kd_factor[:,[2, 5]] * self.d_gains[[2, 5]] * (actions[:,[2,5]] * self.cfg.control.action_scale_vel - self.dof_vel[:,[2, 5]])
+        torques[:,[2, 5]] = self.kp_factor[:,[2, 5]]  * self.p_gains[[2, 5]] * (joint_pos_target[:,[2, 5]]) - self.kd_factor[:,[2, 5]] * self.d_gains[[2, 5]] * (self.dof_vel[:,[2, 5]])
+        # print("p: ", self.p_gains)
         torques = torques * self.motor_strength
         return torch.clip(torques, -self.torque_limits, self.torque_limits)
 
@@ -1246,7 +1246,7 @@ class DiabloPlusPro(BaseTask):
         
     def _reward_stand_still(self):
         # Penalize motion at zero commands
-        return torch.sum(torch.abs(self.dof_pos[:, [0,1,3,4]] - self.default_dof_pos[:, [0,1,2,4,5,6]]), dim=1) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
+        return torch.sum(torch.abs(self.dof_pos[:, [0,1,3,4]] - self.default_dof_pos[:, [0,1,3,4]]), dim=1) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
 
     def _reward_feet_contact_forces(self):
         # penalize high contact forces
@@ -1332,8 +1332,9 @@ class DiabloPlusPro(BaseTask):
     def _reward_stand_nice(self):
         return torch.sum(torch.abs(self.dof_pos[:, [0, 1, 3, 4]] - self.default_dof_pos[:, [0, 1, 3, 4]]), dim=1) * (1 - self.projected_gravity[:,2]) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
     
+    #这个加上去怎么这么奇怪，有点像模型控制里的tilt
     def _reward_foot_relative_x(self):
-        cur_footpos_translated = self.foot_positions - self.root_states[:, 0:3].unsqueeze(1)
+        cur_footpos_translated = self.foot_positions - self.root_states[:, 0:3].unsqueeze(1) #脚部在全局坐标系中的位置
         footpos_in_body_frame = torch.zeros(self.num_envs, 2, 3, device=self.device)
         footpos_x_err_in_body_frame = torch.zeros(self.num_envs, 2, device=self.device)
         for i in range(2):
@@ -1342,6 +1343,30 @@ class DiabloPlusPro(BaseTask):
 
         rew_foot_relative_x = torch.sum(torch.square(footpos_x_err_in_body_frame),dim=-1)
         return rew_foot_relative_x
+    
+    def _reward_same_foot_x_position(self):
+        cur_footpos_translated = self.foot_positions - self.root_states[:, 0:3].unsqueeze(1) #脚部在全局坐标系中的位置
+        footpos_in_body_frame = torch.zeros(self.num_envs, 2, 3, device=self.device)
+        for i in range(len(self.feet_indices)):
+            footpos_in_body_frame[:, i, :] = quat_rotate_inverse(self.base_quat, cur_footpos_translated[:, i, :]) #转换到body系
+
+        foot_x_position_err = (
+            footpos_in_body_frame[:, 0, 0] - footpos_in_body_frame[:, 1, 0]
+        )
+        # print("foot_x_pos_err:",foot_x_position_err , " foot_x_left: ", footpos_in_body_frame[:, 0, 0], " foot_x_right: ", footpos_in_body_frame[:, 1, 0])
+
+        reward = torch.exp(
+            -(foot_x_position_err**2) / self.cfg.rewards.foot_x_position_sigma
+        )
+        return reward
+    
+    def _reward_inclination(self):
+        # 惩罚pitch和roll方向的角速度，防止侧倾
+        rp_error = torch.norm(
+            self.base_ang_vel[:, :2], dim=1
+        )  # commands前两个维度是速度，和角速度无关
+        return rp_error
+
 
     # def _reward_foot_vel_z(self):
         # return torch.sum(torch.square(self.foot_velocities[:,:,2]), dim=-1)
@@ -1443,7 +1468,7 @@ class DiabloPlusPro(BaseTask):
         return torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
     
     def _cost_hip_pos(self):
-        return torch.sum(torch.square(self.dof_pos[:, [0, 3, 6, 9]] - self.default_dof_pos[:, [0, 3, 6, 9]]), dim=1)
+        return torch.sum(torch.square(self.dof_pos[:, [0, 3]] - self.default_dof_pos[:, [0, 3]]), dim=1)
     
     def _cost_feet_height(self):
         # Reward high steps

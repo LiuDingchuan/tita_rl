@@ -237,8 +237,11 @@
     <axis
       xyz="0 1 0" />
     <limit
+      lower="-1000000" 
+      upper="1000000"      
       effort="20"
       velocity="30" />
+    <dynamics friction="0.01" />
   </joint>
   <link
     name="right_hip_link">
@@ -406,7 +409,10 @@
     <axis
       xyz="0 1 0" />
     <limit
+      lower="-1000000" 
+      upper="1000000"      
       effort="20"
       velocity="30" />
+    <dynamics friction="0.01" />
   </joint>
 </robot>

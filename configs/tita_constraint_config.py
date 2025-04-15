@@ -35,10 +35,10 @@ class TitaConstraintHimRoughCfg( LeggedRobotCfg ):
         num_envs = 4096
 
         n_scan = 187
-        n_priv_latent =  4 + 1 + 8 + 8 + 8 + 6 + 1 + 2 + 1 - 3
+        n_priv_latent =  36 #4 + 1 + 8 + 8 + 8 + 6 + 1 + 2 + 1 - 3
         n_proprio = 33
         history_len = 10
-        num_observations = n_proprio + n_scan + history_len*n_proprio + n_priv_latent
+        num_observations = n_proprio + n_scan + history_len * n_proprio + n_priv_latent
 
     class init_state( LeggedRobotCfg.init_state ):
         pos = [0.0, 0.0, 0.3] # x,y,z [m]
