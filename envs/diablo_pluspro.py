@@ -3,7 +3,7 @@ Description:
 Version: 2.0
 Author: Dandelion
 Date: 2025-03-13 18:16:15
-LastEditTime: 2025-04-14 15:16:46
+LastEditTime: 2025-04-17 16:52:42
 FilePath: /tita_rl/envs/diablo_pluspro.py
 '''
 import numpy as np
@@ -142,6 +142,7 @@ class DiabloPlusPro(BaseTask):
         if self.cfg.terrain.measure_heights:
             self.height_points = self._init_height_points()
         self.measured_heights = 0
+        self.base_height = 0
 
         # joint positions offsets and PD gains
         self.default_dof_pos = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
@@ -432,7 +433,13 @@ class DiabloPlusPro(BaseTask):
         self.base_lin_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])
         self.base_ang_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 10:13])
         self.projected_gravity[:] = quat_rotate_inverse(self.base_quat, self.gravity_vec)
-
+        self.foot_velocities = self.rigid_body_states[:,
+                               self.feet_indices,
+                               7:10]
+        self.foot_positions = self.rigid_body_states[:, self.feet_indices,
+                              0:3]
+        self.base_height = torch.mean(self.root_states[:, 2].unsqueeze(1) - self.measured_heights, dim=1)
+        
         #self.roll, self.pitch, self.yaw = euler_from_quaternion(self.base_quat)
         contact = self.contact_forces[:, self.feet_indices, 2] > 1.
         self.contact_filt = torch.logical_or(contact, self.last_contacts) 
@@ -1334,11 +1341,11 @@ class DiabloPlusPro(BaseTask):
     
     #这个加上去怎么这么奇怪，有点像模型控制里的tilt
     def _reward_foot_relative_x(self):
-        cur_footpos_translated = self.foot_positions - self.root_states[:, 0:3].unsqueeze(1) #脚部在全局坐标系中的位置
+        cur_footpos_translated = self.foot_positions - self.root_states[:, 0:3].unsqueeze(1) #脚部在全局坐标系中的位置与头部质心位置的差值
         footpos_in_body_frame = torch.zeros(self.num_envs, 2, 3, device=self.device)
         footpos_x_err_in_body_frame = torch.zeros(self.num_envs, 2, device=self.device)
         for i in range(2):
-            footpos_in_body_frame[:, i, :] = quat_rotate_inverse(self.base_quat, cur_footpos_translated[:, i, :])
+            footpos_in_body_frame[:, i, :] = quat_rotate_inverse(self.base_quat, cur_footpos_translated[:, i, :]) #把差值换算到body系？干什么要这样？
             footpos_x_err_in_body_frame[:, i] = 0 - footpos_in_body_frame[:, i, 0] 
 
         rew_foot_relative_x = torch.sum(torch.square(footpos_x_err_in_body_frame),dim=-1)

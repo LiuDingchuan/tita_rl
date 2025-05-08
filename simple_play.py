@@ -50,7 +50,7 @@ def log_and_plot_states(env, env_cfg, obs, infos, actions, logger, i):
                 "dof_torque": env.torques[robot_index, joint_index].item(),
                 "command_yaw": env.commands[robot_index, 1].item(),
                 "command_height": env.commands[robot_index, 2].item(),
-                # "base_height": env.base_height[robot_index].item(),
+                "base_height": env.base_height[robot_index].item(),
                 "base_vel_x": env.base_lin_vel[robot_index, 0].item(),
                 "base_vel_y": env.base_lin_vel[robot_index, 1].item(),
                 "base_vel_z": env.base_lin_vel[robot_index, 2].item(),
