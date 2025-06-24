@@ -3,7 +3,7 @@ Description:
 Version: 2.0
 Author: Dandelion
 Date: 2025-03-13 18:16:15
-LastEditTime: 2025-04-17 16:52:42
+LastEditTime: 2025-06-23 21:28:09
 FilePath: /tita_rl/envs/diablo_pluspro.py
 '''
 import numpy as np
@@ -13,6 +13,7 @@ from isaacgym import gymtorch, gymapi, gymutil
 import torch
 from typing import Dict
 import random
+import time
 
 # env related
 from envs.base_task import BaseTask
@@ -62,6 +63,7 @@ class DiabloPlusPro(BaseTask):
         self._prepare_cost_function()
         self.init_done = True
         self.global_counter = 0
+        self.last_step_time = time.time()  # Initialize the last step time
 
         # self.reset_idx(torch.arange(self.num_envs, device=self.device))
         # self.post_physics_step()
@@ -170,7 +172,32 @@ class DiabloPlusPro(BaseTask):
                                             self.cfg.depth.resized[1], 
                                             self.cfg.depth.resized[0]).to(self.device)
             
-        self.lag_buffer = torch.zeros(self.num_envs,self.cfg.domain_rand.lag_timesteps,self.num_actions,device=self.device,requires_grad=False)
+        if self.cfg.domain_rand.add_action_lag:   
+            self.lag_buffer = torch.zeros(self.num_envs, self.cfg.domain_rand.lag_timesteps_range[1]+1, self.num_actions, device=self.device, requires_grad=False)
+            if self.cfg.domain_rand.randomize_lag_timesteps:
+                self.lag_timestep = torch.randint(self.cfg.domain_rand.lag_timesteps_range[0],
+                                                    self.cfg.domain_rand.lag_timesteps_range[1]+1,(self.num_envs,),device=self.device) 
+                # if self.cfg.domain_rand.randomize_lag_timesteps_perstep:
+                #     self.last_lag_timestep = torch.ones(self.num_envs,device=self.device,dtype=int) * self.cfg.domain_rand.lag_timesteps_range[1]
+            else:
+                self.lag_timestep = torch.ones(self.num_envs,device=self.device) * self.cfg.domain_rand.lag_timesteps_range[1]
+        if self.cfg.domain_rand.add_dof_lag:
+            self.dof_lag_buffer = self.default_dof_pos.expand(self.num_envs, self.cfg.domain_rand.dof_lag_timesteps_range[1]+1, self.num_dof ).clone()
+            self.dof_lag_buffer = self.dof_lag_buffer.transpose(1, 2) #交换2 3维，变成（num_envs, num_dof, lag_timesteps+1），方便后续以[环境、关节、步数]来进行索引
+            self.dof_vel_lag_buffer = torch.zeros(self.num_envs,self.num_actions,self.cfg.domain_rand.dof_lag_timesteps_range[1]+1,device=self.device)
+
+            if self.cfg.domain_rand.randomize_dof_lag_timesteps:
+                self.dof_lag_timestep = torch.randint(self.cfg.domain_rand.dof_lag_timesteps_range[0],
+                                                        self.cfg.domain_rand.dof_lag_timesteps_range[1]+1, (self.num_envs,),device=self.device)
+            else:
+                self.dof_lag_timestep = torch.ones(self.num_envs,device=self.device) * self.cfg.domain_rand.dof_lag_timesteps_range[1]
+        if self.cfg.domain_rand.add_imu_lag:
+            self.imu_lag_buffer = torch.zeros(self.num_envs, 6, self.cfg.domain_rand.imu_lag_timesteps_range[1]+1,device=self.device)
+            if self.cfg.domain_rand.randomize_imu_lag_timesteps:
+                self.imu_lag_timestep = torch.randint(self.cfg.domain_rand.imu_lag_timesteps_range[0],
+                                                        self.cfg.domain_rand.imu_lag_timesteps_range[1]+1, (self.num_envs,),device=self.device)
+            else:
+                self.imu_lag_timestep = torch.ones(self.num_envs,device=self.device) * self.cfg.domain_rand.imu_lag_timesteps_range[1]
 
     def _create_envs(self):
         """ Creates environments:
@@ -309,7 +336,6 @@ class DiabloPlusPro(BaseTask):
         Args:
             actions (torch.Tensor): Tensor of shape (num_envs, num_actions_per_env)
         """
-
         self.action_history_buf = torch.cat([self.action_history_buf[:, 1:].clone(), actions[:, None, :].clone()], dim=1)
 
         actions = self.reindex(actions)
@@ -325,6 +351,22 @@ class DiabloPlusPro(BaseTask):
 
         for _ in range(self.cfg.control.decimation):
             self.torques = self._compute_torques(self.actions).view(self.torques.shape)
+            if self.cfg.domain_rand.add_dof_lag:
+                q = self.dof_pos
+                self.dof_lag_buffer[:,:,1:] = self.dof_lag_buffer[:,:,:self.cfg.domain_rand.dof_lag_timesteps_range[1]].clone()
+                self.dof_lag_buffer[:,:,0] = q.clone()
+                dq = self.dof_vel
+                self.dof_vel_lag_buffer[:,:,1:] = self.dof_vel_lag_buffer[:,:,:self.cfg.domain_rand.dof_lag_timesteps_range[1]].clone()
+                self.dof_vel_lag_buffer[:,:,0] = dq.clone()
+            if self.cfg.domain_rand.add_imu_lag:
+                self.gym.refresh_actor_root_state_tensor(self.sim)
+                self.base_quat = self.root_states[:, 3:7]
+                self.base_ang_vel = quat_rotate_inverse(self.base_quat, self.root_states[:, 10:13])
+                # self.base_euler_xyz = get_euler_xyz_tensor(self.base_quat)
+                self.projected_gravity = quat_rotate_inverse(self.base_quat, self.gravity_vec)
+                self.imu_lag_buffer[:,:,1:] = self.imu_lag_buffer[:,:,:self.cfg.domain_rand.imu_lag_timesteps_range[1]].clone()
+                self.imu_lag_buffer[:,:,0] = torch.cat((self.base_ang_vel, self.projected_gravity ), 1).clone()            
+            
             self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
             self.gym.simulate(self.sim)
             self.gym.fetch_results(self.sim, True)
@@ -346,11 +388,27 @@ class DiabloPlusPro(BaseTask):
     def compute_observations(self):
         self.dof_pos[:,[2, 5]]  = 0 
 
-        obs_buf =torch.cat((self.base_ang_vel  * self.obs_scales.ang_vel,
-                            self.projected_gravity,
+        if self.cfg.domain_rand.add_dof_lag:
+            self.lagged_dof_pos = self.dof_lag_buffer[torch.arange(self.num_envs), :, self.dof_lag_timestep.long()]
+            self.lagged_dof_vel = self.dof_vel_lag_buffer[torch.arange(self.num_envs), :, self.dof_lag_timestep.long()]
+        else:
+            self.lagged_dof_pos = self.dof_pos
+            self.lagged_dof_vel = self.dof_vel
+
+        if self.cfg.domain_rand.add_imu_lag:
+            self.lagged_imu = self.imu_lag_buffer[torch.arange(self.num_envs), :, self.imu_lag_timestep.long()]
+            self.lagged_base_ang_vel = self.lagged_imu[:,:3].clone()
+            self.lagged_projected_gravity = self.lagged_imu[:,-3:].clone()
+        # no imu lag
+        else:              
+            self.lagged_base_ang_vel = self.base_ang_vel[:,:3]
+            self.lagged_projected_gravity = self.projected_gravity
+
+        obs_buf =torch.cat((self.lagged_base_ang_vel  * self.obs_scales.ang_vel,
+                            self.lagged_projected_gravity,
                             self.commands[:, :3] * self.commands_scale,
-                            self.reindex((self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos),
-                            self.reindex(self.dof_vel * self.obs_scales.dof_vel),
+                            self.reindex((self.lagged_dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos),
+                            self.reindex(self.lagged_dof_vel * self.obs_scales.dof_vel),
                             #self.reindex_feet(self.contact_filt.float()-0.5),
                             # self.reindex(self.action_history_buf[:,-1])),dim=-1)
                             self.action_history_buf[:,-1]),dim=-1)
@@ -381,7 +439,7 @@ class DiabloPlusPro(BaseTask):
             self.restitution_coeffs_tensor,
             self.motor_strength, 
             self.kp_factor,
-            self.kd_factor), dim=-1)
+            self.kd_factor), dim=-1) #privileged latent vector
         
         # add perceptive inputs if not blind
         if self.cfg.terrain.measure_heights:
@@ -671,24 +729,32 @@ class DiabloPlusPro(BaseTask):
         actions_scaled[:, [0, 3]] *= self.cfg.control.hip_scale_reduction
         # actions_scaled[:, [3, 7, 11, 15]] *= 20.0
 
+        #######原版的动作延迟代码##########
         # if self.cfg.domain_rand.randomize_lag_timesteps:
-        #     self.lag_buffer = self.lag_buffer[1:] + [actions_scaled.clone()]
-        #     joint_pos_target = self.lag_buffer[0] + self.default_dof_pos
+        #     self.lag_buffer = torch.cat([self.lag_buffer[:,1:,:].clone(), actions_scaled.unsqueeze(1).clone()],dim=1)
+        #     joint_pos_target = self.lag_buffer[self.num_envs_indexes,self.randomized_lag,:] + self.default_dof_pos
         # else:
         #     joint_pos_target = actions_scaled + self.default_dof_pos
-
-        if self.cfg.domain_rand.randomize_lag_timesteps:
-            self.lag_buffer = torch.cat([self.lag_buffer[:,1:,:].clone(),actions_scaled.unsqueeze(1).clone()],dim=1)
-            joint_pos_target = self.lag_buffer[self.num_envs_indexes,self.randomized_lag,:] + self.default_dof_pos
+        if self.cfg.domain_rand.add_action_lag:
+            self.lag_buffer[:,1:,:] = self.lag_buffer[:, :self.cfg.domain_rand.lag_timesteps_range[1], :].clone()
+            self.lag_buffer[:,0,:] = actions_scaled.clone()
+            # if self.cfg.domain_rand.randomize_lag_timesteps_perstep:
+            #     self.lag_timestep = torch.randint(self.cfg.domain_rand.lag_timesteps_range[0], 
+            #                                       self.cfg.domain_rand.lag_timesteps_range[1]+1,(self.num_envs,),device=self.device)
+            #     cond = self.lag_timestep > self.last_lag_timestep + 1
+            #     self.lag_timestep[cond] = self.last_lag_timestep[cond] + 1
+            #     self.last_lag_timestep = self.lag_timestep.clone()
+            self.lagged_actions_scaled = self.lag_buffer[torch.arange(self.num_envs),self.lag_timestep.long(),:]
         else:
-            joint_pos_target = actions_scaled + self.default_dof_pos
+            self.lagged_actions_scaled = actions_scaled
 
+        joint_pos_target = self.lagged_actions_scaled + self.default_dof_pos
         # joint_pos_target = torch.clamp(joint_pos_target,self.dof_pos-1,self.dof_pos+1)
 
         control_type = self.cfg.control.control_type
         if control_type=="P":
             if not self.cfg.domain_rand.randomize_kpkd:  # TODO add strength to gain directly
-                torques = self.p_gains*(joint_pos_target- self.dof_pos) - self.d_gains*self.dof_vel
+                torques = self.p_gains*(joint_pos_target - self.dof_pos) - self.d_gains*self.dof_vel
             else:
                 torques = self.kp_factor * self.p_gains*(joint_pos_target - self.dof_pos) - self.kd_factor * self.d_gains * self.dof_vel
         elif control_type=="V":
@@ -699,7 +765,6 @@ class DiabloPlusPro(BaseTask):
             raise NameError(f"Unknown controller type: {control_type}")
         # torques[:,[2, 5]] = self.kd_factor[:,[2, 5]] * self.d_gains[[2, 5]] * (actions[:,[2,5]] * self.cfg.control.action_scale_vel - self.dof_vel[:,[2, 5]])
         torques[:,[2, 5]] = self.kp_factor[:,[2, 5]]  * self.p_gains[[2, 5]] * (joint_pos_target[:,[2, 5]]) - self.kd_factor[:,[2, 5]] * self.d_gains[[2, 5]] * (self.dof_vel[:,[2, 5]])
-        # print("p: ", self.p_gains)
         torques = torques * self.motor_strength
         return torch.clip(torques, -self.torque_limits, self.torque_limits)
 
@@ -761,6 +826,7 @@ class DiabloPlusPro(BaseTask):
         self._reset_dofs(env_ids)
         self._reset_root_states(env_ids)
         self._resample_commands(env_ids)
+        self.randomize_lag_props(env_ids)
 
         # reset buffers
         self.last_actions[env_ids] = 0.
@@ -793,7 +859,7 @@ class DiabloPlusPro(BaseTask):
 
         # for i in range(len(self.lag_buffer)):
         #     self.lag_buffer[i][env_ids, :] = 0
-        self.lag_buffer[env_ids,:,:] = 0
+        # self.lag_buffer[env_ids,:,:] = 0
     
     def reset(self):
         """ Reset all robots"""
@@ -847,6 +913,49 @@ class DiabloPlusPro(BaseTask):
                                               gymtorch.unwrap_tensor(self.dof_state),
                                               gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
 
+    def randomize_lag_props(self,env_ids): 
+        """ random add lag
+        """
+        if self.cfg.domain_rand.add_action_lag:   
+            self.lag_buffer[env_ids, :, :] = 0.0
+            if self.cfg.domain_rand.randomize_lag_timesteps:
+                self.lag_timestep[env_ids] = torch.randint(self.cfg.domain_rand.lag_timesteps_range[0], 
+                                                           self.cfg.domain_rand.lag_timesteps_range[1]+1,(len(env_ids),),device=self.device) 
+            else:
+                self.lag_timestep[env_ids] = self.cfg.domain_rand.lag_timesteps_range[1]
+        if self.cfg.domain_rand.add_dof_lag:
+            dof_lag_buffer_init = self.default_dof_pos.expand(self.num_envs, self.cfg.domain_rand.dof_lag_timesteps_range[1]+1, self.num_actions).clone()
+            dof_lag_buffer_init = dof_lag_buffer_init.transpose(1, 2)
+            self.dof_lag_buffer[env_ids, :, :] = dof_lag_buffer_init[env_ids,:, :]
+            self.dof_vel_lag_buffer[env_ids, :, :] = 0.0
+
+            if self.cfg.domain_rand.randomize_dof_lag_timesteps:
+                self.dof_lag_timestep[env_ids] = torch.randint(self.cfg.domain_rand.dof_lag_timesteps_range[0],
+                                                        self.cfg.domain_rand.dof_lag_timesteps_range[1]+1, (len(env_ids),),device=self.device)
+            else:
+                self.dof_lag_timestep[env_ids] = self.cfg.domain_rand.dof_lag_timesteps_range[1]
+
+        if self.cfg.domain_rand.add_imu_lag:                
+            self.imu_lag_buffer[env_ids, :, :] = 0.0   
+            if self.cfg.domain_rand.randomize_imu_lag_timesteps:
+                self.imu_lag_timestep[env_ids] = torch.randint(self.cfg.domain_rand.imu_lag_timesteps_range[0],
+                                                        self.cfg.domain_rand.imu_lag_timesteps_range[1]+1, (len(env_ids),),device=self.device)
+            else:
+                self.imu_lag_timestep[env_ids] = self.cfg.domain_rand.imu_lag_timesteps_range[1]
+
+        # 重置actionbuffer
+        # if self.cfg.domain_rand.randomize_lag_timesteps:  
+        #     for i in range(len(self.lag_buffer)):
+        #         self.lag_buffer[i][env_ids, :] = 0
+        
+        # if self.cfg.domain_rand.randomize_torque_delay:
+        #     for i in range(len(self.hist_torques)):
+        #         self.hist_torques[i][env_ids, :] = 0.
+        
+        # if self.cfg.domain_rand.randomize_obs_delay:
+        #     for i in range(len(self.hist_obs)):
+        #         self.hist_obs[i][env_ids, :] = 0.
+                
     def create_sim(self):
         """ Creates simulation, terrain and evironments
         """

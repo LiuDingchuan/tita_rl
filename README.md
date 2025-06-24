@@ -190,4 +190,3 @@ python simple_play.py --task=Tita
 至此，iaacgym仿真和推理部分已经完成，接下来转到sim2sim和sim2real部分。  
 
 sim2sim2real参考：[tita_rl_sim2sim2real](https://github.com/DDTRobot/tita_rl_sim2sim2real)
-

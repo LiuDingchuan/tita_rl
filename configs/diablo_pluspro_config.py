@@ -74,10 +74,10 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         action_scale = 0.5
         action_scale_vel = 10
         # decimation: Number of control action updates @ sim DT per policy DT
-        decimation = 4
+        decimation = 5 #100Hz
         hip_scale_reduction = 0.5
 
-        use_filter = True
+        use_filter = False
 
     class commands(LeggedRobotCfg.control):
         curriculum = True
@@ -134,7 +134,6 @@ class DiabloPlusProCfg(LeggedRobotCfg):
             same_foot_x_position = 0.1
             inclination = 0.0
 
-
     class domain_rand(LeggedRobotCfg.domain_rand):
         randomize_friction = True
         friction_range = [0.5, 1.5]
@@ -154,9 +153,19 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         randomize_kpkd = True
         kp_range = [0.8, 1.2]
         kd_range = [0.8, 1.2]
-
+        ##delay lag
+        add_action_lag = True
         randomize_lag_timesteps = True
-        lag_timesteps = 3
+        lag_timesteps = 6
+        lag_timesteps_range = [1, 20] # 1~10ms
+
+        add_dof_lag = True
+        randomize_dof_lag_timesteps = True
+        dof_lag_timesteps_range = [0, 2] # 1~4ms
+
+        add_imu_lag = True # 现在是euler，需要projected gravity                    # 这个是 imu 的延迟
+        randomize_imu_lag_timesteps = True
+        imu_lag_timesteps_range = [0, 2] # 实际10~22ms
 
         disturbance = False
         disturbance_range = [-30.0, 30.0]
@@ -248,7 +257,7 @@ class DiabloPlusProCfgPPO(LeggedRobotCfgPPO):
         imi_flag = True
 
     class runner(LeggedRobotCfgPPO.runner):
-        run_name = "multi_terrain"
+        run_name = "add_lag_trimesh"
         experiment_name = "diablo_pluspro"
         policy_class_name = "ActorCriticBarlowTwins"
         runner_class_name = "OnConstraintPolicyRunner"

@@ -133,7 +133,10 @@ def play(args):
     env_cfg.noise.add_noise = False
     env_cfg.domain_rand.randomize_friction = False
     env_cfg.domain_rand.randomize_restitution = False
-    env_cfg.control.use_filter = True
+    env_cfg.control.use_filter = False
+    env_cfg.domain_rand.add_action_lag = False
+    env_cfg.domain_rand.add_dof_lag = False
+    env_cfg.domain_rand.add_imu_lag = False
     # prepare environment
     env, _ = task_registry.make_env(name=args.task, args=args, env_cfg=env_cfg)
     obs = env.get_observations()

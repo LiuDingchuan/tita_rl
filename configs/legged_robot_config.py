@@ -53,8 +53,8 @@ class LeggedRobotCfg(BaseConfig):
         vertical_scale = 0.005  # [m]
         border_size = 25  # [m]
         curriculum = True
-        static_friction = 1.0
-        dynamic_friction = 1.0
+        static_friction = 0.5
+        dynamic_friction = 0.5
         restitution = 0.
         # rough terrain only:
         measure_heights = True
@@ -217,7 +217,7 @@ class LeggedRobotCfg(BaseConfig):
         lookat = [11., 5, 3.]  # [m]
 
     class sim:
-        dt = 0.0025
+        dt = 0.002 #500 Hz
         substeps = 1
         gravity = [0., 0., -9.81]  # [m/s^2]
         up_axis = 1  # 0 is y, 1 is z
