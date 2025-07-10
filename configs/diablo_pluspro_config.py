@@ -77,21 +77,23 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         decimation = 5 #100Hz
         hip_scale_reduction = 0.5
 
-        use_filter = False
+        use_filter = True
 
     class commands(LeggedRobotCfg.control):
         curriculum = True
         max_curriculum = 1.0
-        num_commands = 4  # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
+        num_commands = 5  # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
         resampling_time = 10.0  # time before command are changed[s]
         heading_command = True  # if true: compute ang vel command from heading error
         global_reference = False
+        use_random_height = True
 
         class ranges:
             lin_vel_x = [-1.0, 1.0]  # min max [m/s]
             lin_vel_y = [-1.0, 1.0]  # min max [m/s]
             ang_vel_yaw = [-1, 1]  # min max [rad/s]
-            heading = [-3.14, 3.14]
+            heading = [-1.57, 1.57]
+            height = [0.26, 0.4]
 
     class asset(LeggedRobotCfg.asset):
 
@@ -102,13 +104,14 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         name = "diablo_pluspro"
         penalize_contacts_on = ["hip_link", "knee_link", "base_link"]
         terminate_after_contacts_on = ["base_link"]
-        self_collisions = 0  # 1 to disable, 0 to enable...bitwise filter
+        self_collisions = 1  # 1 to disable, 0 to enable...bitwise filter
         flip_visual_attachments = False
-        replace_cylinder_with_capsule = False
+        replace_cylinder_with_capsule = True
+        armature = 0.0422
 
     class rewards(LeggedRobotCfg.rewards):
         soft_dof_pos_limit = 0.9
-        base_height_target = 0.45
+        base_height_target = 0.4
         foot_x_position_sigma = 0.01 #越小对x的约束越强
 
         class scales(LeggedRobotCfg.rewards.scales):
@@ -116,19 +119,19 @@ class DiabloPlusProCfg(LeggedRobotCfg):
             powers = -2e-5
             termination = -100
             tracking_lin_vel = 2.0
-            tracking_ang_vel = 1.0
+            tracking_ang_vel = 2.0
             lin_vel_z = -0.0
             ang_vel_xy = -0.05
             dof_vel = 0.0
             dof_acc = -2.5e-7
-            base_height = -1.0
+            base_height = 1.0
             feet_air_time = 0.0
             collision = -1.0
             stumble = 0.0
             action_rate = -0.01
-            action_smoothness = 0
+            # action_smoothness = 0
             stand_still = -0.5 #要给负值才能有起到使其在0输入时关节少动的效果
-            foot_clearance = -0.0
+            # foot_clearance = -0.0
             orientation = -10.0
             stand_nice = -0.2
             same_foot_x_position = 0.1
@@ -138,17 +141,17 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         randomize_friction = True
         friction_range = [0.5, 1.5]
         randomize_restitution = True
-        restitution_range = [0.0, 1.0]
+        restitution_range = [0.0, 1.0] #恢复系数
         randomize_base_mass = True
         added_mass_range = [-1.0, 3.0]
-        randomize_base_com = True
-        added_com_range = [-0.15, 0.15]
+        # randomize_base_com = True
+        # added_com_range = [-0.2, 0.2]
         push_robots = True
         push_interval_s = 15
         max_push_vel_xy = 1
 
         randomize_motor = True
-        motor_strength_range = [0.8, 1.2]
+        motor_strength_range = [0.9, 1.1]
 
         randomize_kpkd = True
         kp_range = [0.8, 1.2]
@@ -157,19 +160,62 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         add_action_lag = True
         randomize_lag_timesteps = True
         lag_timesteps = 6
-        lag_timesteps_range = [1, 20] # 1~10ms
+        lag_timesteps_range = [1, 6] # 1~10ms
 
-        add_dof_lag = True
+        add_dof_lag = False
         randomize_dof_lag_timesteps = True
         dof_lag_timesteps_range = [0, 2] # 1~4ms
 
-        add_imu_lag = True # 现在是euler，需要projected gravity                    # 这个是 imu 的延迟
+        add_imu_lag = False # 现在是euler，需要projected gravity 
         randomize_imu_lag_timesteps = True
         imu_lag_timesteps_range = [0, 2] # 实际10~22ms
 
         disturbance = False
         disturbance_range = [-30.0, 30.0]
         disturbance_interval = 8
+
+        randomize_com_displacement = True      #加到priv里的东西
+        com_displacement_range = [-0.05, 0.05]  # base link com的随机化范围
+        randomize_each_link = True
+        link_com_displacement_range_factor = 0.02   # link com的随机化比例(与com_displacement_range相乘)
+
+        randomize_inertia = True    
+        randomize_inertia_range = [0.8, 1.2]
+
+        rand_interval = 10  # Randomization interval in seconds
+
+        randomize_joint_friction = True
+        randomize_joint_friction_each_joint = False       
+        default_joint_friction = [0., 0., 0.01, 0., 0., 0.01]
+        joint_friction_range = [0.8, 1.2]
+        joint_1_friction_range = [0.9, 1.1] #系数
+        joint_2_friction_range = [0.9, 1.1]
+        joint_3_friction_range = [0.9, 1.1]
+        joint_4_friction_range = [0.9, 1.1]
+        joint_5_friction_range = [0.9, 1.1]
+        joint_6_friction_range = [0.9, 1.1]
+
+        randomize_joint_damping = True
+        randomize_joint_damping_each_joint = True
+        default_joint_damping = [0.6, 0.6, 0.0,\
+                                 0.6, 0.6, 0.0,]
+        joint_damping_range = [0.8, 1.2]
+        joint_1_damping_range = [0.8, 1.2] #系数
+        joint_2_damping_range = [0.8, 1.2]
+        joint_3_damping_range = [0.8, 1.2]
+        joint_4_damping_range = [0.8, 1.2]
+        joint_5_damping_range = [0.8, 1.2]
+        joint_6_damping_range = [0.8, 1.2]
+
+        randomize_joint_armature = True   
+        randomize_joint_armature_each_joint = True
+        joint_armature_range = [0.05, 0.10]    
+        joint_1_armature_range = [0.05, 0.10]
+        joint_2_armature_range = [0.05, 0.10]
+        joint_3_armature_range = [0.003, 0.01]
+        joint_4_armature_range = [0.05, 0.10]
+        joint_5_armature_range = [0.05, 0.10]
+        joint_6_armature_range = [0.003, 0.01]
 
     class depth(LeggedRobotCfg.depth):
         use_camera = False
@@ -254,10 +300,10 @@ class DiabloPlusProCfgPPO(LeggedRobotCfgPPO):
         num_costs = 6
 
         teacher_act = True
-        imi_flag = True
+        imi_flag = False
 
     class runner(LeggedRobotCfgPPO.runner):
-        run_name = "add_lag_trimesh"
+        run_name = "stair_with_capsule"
         experiment_name = "diablo_pluspro"
         policy_class_name = "ActorCriticBarlowTwins"
         runner_class_name = "OnConstraintPolicyRunner"

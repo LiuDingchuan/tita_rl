@@ -3,7 +3,7 @@ Description:
 Version: 2.0
 Author: Dandelion
 Date: 2025-03-13 18:16:15
-LastEditTime: 2025-06-23 21:28:09
+LastEditTime: 2025-07-10 18:11:55
 FilePath: /tita_rl/envs/diablo_pluspro.py
 '''
 import numpy as np
@@ -198,7 +198,50 @@ class DiabloPlusPro(BaseTask):
                                                         self.cfg.domain_rand.imu_lag_timesteps_range[1]+1, (self.num_envs,),device=self.device)
             else:
                 self.imu_lag_timestep = torch.ones(self.num_envs,device=self.device) * self.cfg.domain_rand.imu_lag_timesteps_range[1]
-
+    
+    def _init_custom_buffers__(self):
+        # self.friction_coeffs = 1 * torch.ones(self.num_envs, 2, dtype=torch.float, device=self.device,
+        #                                                           requires_grad=False)
+        # self.restitutions = 1 * torch.ones(self.num_envs, 2, dtype=torch.float, device=self.device,
+        #                                                           requires_grad=False)
+        # self.payloads = torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
+        # self.mass_scale = torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
+        self.com_displacements = torch.zeros(self.num_envs, 3 * self.num_bodies , dtype=torch.float, device=self.device,
+                                             requires_grad=False)
+        # self.motor_strengths = torch.ones(self.num_envs, self.num_dof, dtype=torch.float, device=self.device,
+        #                                   requires_grad=False)
+        # self.motor_offsets = torch.zeros(self.num_envs, self.num_dof, dtype=torch.float, device=self.device,
+        #                                  requires_grad=False) 
+        # self.default_motor_offset = torch.tensor(self.cfg.domain_rand.default_motor_offset, dtype=torch.float, device=self.device,
+        #                                  requires_grad=False)   
+        # self.motor_offsets[:] = self.default_motor_offset                           
+        # self.Kp_factors = torch.ones(self.num_envs, self.num_dof, dtype=torch.float, device=self.device,
+        #                              requires_grad=False)
+        # self.Kd_factors = torch.ones(self.num_envs, self.num_dof, dtype=torch.float, device=self.device,
+        #                              requires_grad=False)
+        # self.gravities = torch.zeros(self.num_envs, 3, dtype=torch.float, device=self.device,
+        #                         requires_grad=False)
+        # self.gravity_vec = to_torch(get_axis_params(-1., self.up_axis_idx), device=self.device).repeat(
+        #     (self.num_envs, 1))
+        # if self.cfg.domain_rand.randomize_coulomb_friction:
+        #     self.randomized_joint_coulomb_friction = torch.zeros(self.num_envs,self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
+        #     self.randomized_joint_stick_friction = torch.zeros(self.num_envs,self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)        
+        if self.cfg.domain_rand.randomize_joint_friction:
+            if self.cfg.domain_rand.randomize_joint_friction_each_joint:
+                self.joint_friction_coeffs = torch.ones(self.num_envs, self.num_dofs, dtype=torch.float, device=self.device,requires_grad=False)
+            else:
+                self.joint_friction_coeffs = torch.ones(self.num_envs, 1, dtype=torch.float, device=self.device,requires_grad=False)
+        if self.cfg.domain_rand.randomize_joint_damping:    
+            if self.cfg.domain_rand.randomize_joint_damping_each_joint:
+                self.joint_damping_coeffs = torch.ones(self.num_envs, self.num_dofs, dtype=torch.float, device=self.device,requires_grad=False)
+            else:
+                self.joint_damping_coeffs = torch.ones(self.num_envs, 1, dtype=torch.float, device=self.device,requires_grad=False)
+        if self.cfg.domain_rand.randomize_joint_armature:      
+            if self.cfg.domain_rand.randomize_joint_armature_each_joint:
+                self.joint_armatures = torch.zeros(self.num_envs, self.num_dofs, dtype=torch.float, device=self.device,requires_grad=False)  
+            else:
+                self.joint_armatures = torch.zeros(self.num_envs, 1, dtype=torch.float, device=self.device,requires_grad=False)
+    
     def _create_envs(self):
         """ Creates environments:
              1. loads the robot URDF/MJCF asset,
@@ -266,6 +309,11 @@ class DiabloPlusPro(BaseTask):
         self.cam_tensors = []
         self.mass_params_tensor = torch.zeros(self.num_envs, 4, dtype=torch.float, device=self.device, requires_grad=False)
 
+        #add_rand
+        self._init_custom_buffers__()
+        self._randomize_dof_props(torch.arange(self.num_envs, device=self.device))
+        self._randomize_rigid_body_props(torch.arange(self.num_envs, device=self.device))
+        
         print("Creating env...")
         for i in range(self.num_envs):
             # create env instance
@@ -285,6 +333,10 @@ class DiabloPlusPro(BaseTask):
             self.actor_handles.append(actor_handle)
             self.attach_camera(i, env_handle, actor_handle)
             self.mass_params_tensor[i, :] = torch.from_numpy(mass_params).to(self.device).to(torch.float)
+
+        self._refresh_actor_dof_props(torch.arange(self.num_envs, device=self.device))  # 智元 dof random
+        dof_props = self.gym.get_actor_dof_properties(self.envs[0], 0)
+        print('dof_props', dof_props)
 
         if self.cfg.domain_rand.randomize_friction:
             self.friction_coeffs_tensor = self.friction_coeffs.to(self.device).to(torch.float).squeeze(-1)
@@ -323,6 +375,32 @@ class DiabloPlusPro(BaseTask):
         for i in range(len(termination_contact_names)):
             self.termination_contact_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], termination_contact_names[i])
 
+    # a function to update dof friction, damping, armature
+    def _refresh_actor_dof_props(self, env_ids):
+        ''' Refresh the dof properties of the actor in the given environments, i.e.
+            dof friction, damping, armature
+        '''
+        for env_id in env_ids:
+            dof_props = self.gym.get_actor_dof_properties(self.envs[env_id], 0)
+            for i in range(self.num_dof):
+                if self.cfg.domain_rand.randomize_joint_friction:
+                    if self.cfg.domain_rand.randomize_joint_friction_each_joint:
+                        dof_props["friction"][i] *= self.joint_friction_coeffs[env_id, i]
+                    else:    
+                        dof_props["friction"][i] *= self.joint_friction_coeffs[env_id, 0]
+                if self.cfg.domain_rand.randomize_joint_damping:
+                    if self.cfg.domain_rand.randomize_joint_damping_each_joint:
+                        dof_props["damping"][i] *= self.joint_damping_coeffs[env_id, i]
+                    else:
+                        dof_props["damping"][i] *= self.joint_damping_coeffs[env_id, 0]
+                        
+                if self.cfg.domain_rand.randomize_joint_armature:
+                    if self.cfg.domain_rand.randomize_joint_armature_each_joint:
+                        dof_props["armature"][i] = self.joint_armatures[env_id, i]
+                    else:
+                        dof_props["armature"][i] = self.joint_armatures[env_id, 0]
+            self.gym.set_actor_dof_properties(self.envs[env_id], 0, dof_props)
+    
     def reindex(self,tensor):
         #sim2real purpose
         return tensor[:,[3,4,5,0,1,2]]
@@ -620,6 +698,10 @@ class DiabloPlusPro(BaseTask):
         
         if self.cfg.domain_rand.disturbance and (self.common_step_counter % self.cfg.domain_rand.disturbance_interval == 0):
             self._disturbance_robots()
+            
+        env_ids = (self.episode_length_buf % int(self.cfg.domain_rand.rand_interval) == 0).nonzero(
+            as_tuple=False).flatten()
+        self._randomize_dof_props(env_ids)
     
     def _process_rigid_shape_props(self, props, env_id):
         """ Callback allowing to store/change/randomize the rigid shape properties of each environment.
@@ -659,8 +741,7 @@ class DiabloPlusPro(BaseTask):
 
         return props
     
-    def _process_rigid_body_props(self, props, env_id):
-     
+    def _process_rigid_body_props(self, props, env_id):     
         if self.cfg.domain_rand.randomize_base_mass:
             rng_mass = self.cfg.domain_rand.added_mass_range
             rand_mass = np.random.uniform(rng_mass[0], rng_mass[1], size=(1, ))
@@ -668,13 +749,48 @@ class DiabloPlusPro(BaseTask):
         else:
             rand_mass = np.zeros((1, ))
         
-        if self.cfg.domain_rand.randomize_base_com:
-            rng_com = self.cfg.domain_rand.added_com_range
-            rand_com = np.random.uniform(rng_com[0], rng_com[1], size=(3, ))
-            props[0].com += gymapi.Vec3(*rand_com)
-        else:
-            rand_com = np.zeros(3)
-        mass_params = np.concatenate([rand_mass, rand_com])
+        # if self.cfg.domain_rand.randomize_base_com:
+        #     rng_com = self.cfg.domain_rand.added_com_range
+        #     rand_com = np.random.uniform(rng_com[0], rng_com[1], size=(3, ))
+        #     props[0].com += gymapi.Vec3(*rand_com)
+        # else:
+        #     rand_com = np.zeros(3)
+
+        
+        if self.cfg.domain_rand.randomize_com_displacement:
+            if self.cfg.domain_rand.randomize_each_link:
+                for i in range(len(props)):
+                    current_com = props[i].com
+                    if i==0: # baselink的com随机化最大
+                        new_com_x = current_com.x + self.com_displacements[env_id,0].item()
+                        new_com_y = current_com.y + self.com_displacements[env_id,1].item()
+                        new_com_z = current_com.z + self.com_displacements[env_id,2].item()
+                    elif i == 3 or i == 6: # 轮子是准的
+                        new_com_x = current_com.x
+                        new_com_y = current_com.y
+                        new_com_z = current_com.z
+                    else: # 其他link的x方向随机化大,其他方向小
+                        new_com_x = current_com.x + self.com_displacements[env_id,3*i+0].item() * self.cfg.domain_rand.link_com_displacement_range_factor
+                        new_com_y = current_com.y + self.com_displacements[env_id,3*i+1].item() * self.cfg.domain_rand.link_com_displacement_range_factor
+                        new_com_z = current_com.z + self.com_displacements[env_id,3*i+2].item() * self.cfg.domain_rand.link_com_displacement_range_factor 
+                    props[i].com = gymapi.Vec3(new_com_x,new_com_y,new_com_z)
+            else:
+                current_com = props[0].com
+                new_com_x = current_com.x + self.com_displacements[env_id,0].item() # debug
+                new_com_y = current_com.y + self.com_displacements[env_id,1].item() 
+                new_com_z = current_com.z + self.com_displacements[env_id,2].item() 
+                props[0].com = gymapi.Vec3(new_com_x,new_com_y,new_com_z)
+        mass_params = np.concatenate([rand_mass, self.com_displacements[env_id, :3].cpu().numpy()])
+
+        if self.cfg.domain_rand.randomize_inertia:
+            for i in range(len(props)):
+                low_bound, high_bound = self.cfg.domain_rand.randomize_inertia_range
+                inertia_scale =  np.random.uniform(low_bound, high_bound)
+                # props[i].mass *= inertia_scale
+                props[i].inertia.x.x *= inertia_scale
+                props[i].inertia.y.y *= inertia_scale
+                props[i].inertia.z.z *= inertia_scale
+        # self.body_mass[env_id] = props[0].mass
 
         return props, mass_params
     
@@ -695,6 +811,8 @@ class DiabloPlusPro(BaseTask):
             self.dof_vel_limits = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
             self.torque_limits = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
             for i in range(len(props)):
+                props["friction"][i] = self.cfg.domain_rand.default_joint_friction[i]
+                props["damping"][i] = self.cfg.domain_rand.default_joint_damping[i]
                 self.dof_pos_limits[i, 0] = props["lower"][i].item()
                 self.dof_pos_limits[i, 1] = props["upper"][i].item()
                 self.dof_vel_limits[i] = props["velocity"][i].item()
@@ -705,6 +823,47 @@ class DiabloPlusPro(BaseTask):
                 self.dof_pos_limits[i, 0] = m - 0.5 * r * self.cfg.rewards.soft_dof_pos_limit
                 self.dof_pos_limits[i, 1] = m + 0.5 * r * self.cfg.rewards.soft_dof_pos_limit
         return props
+    
+# random_function
+# ============================================================
+    def _randomize_dof_props(self, env_ids ):
+        # rand joint friction set in sim
+        if self.cfg.domain_rand.randomize_joint_friction:
+            if self.cfg.domain_rand.randomize_joint_friction_each_joint:
+                for i in range(self.num_dofs):
+                    range_key = f'joint_{i+1}_friction_range'
+                    friction_range = getattr(self.cfg.domain_rand, range_key)
+                    self.joint_friction_coeffs[env_ids, i] = torch_rand_float(friction_range[0], friction_range[1], (len(env_ids), 1), device=self.device).reshape(-1)
+            else:                      
+                joint_friction_range = self.cfg.domain_rand.joint_friction_range
+                self.joint_friction_coeffs[env_ids] = torch_rand_float(joint_friction_range[0], joint_friction_range[1], (len(env_ids), 1), device=self.device)
+
+        # rand joint damping set in sim
+        if self.cfg.domain_rand.randomize_joint_damping:
+            if self.cfg.domain_rand.randomize_joint_damping_each_joint:
+                for i in range(self.num_dofs):
+                    range_key = f'joint_{i+1}_damping_range'
+                    damping_range = getattr(self.cfg.domain_rand, range_key)
+                    self.joint_damping_coeffs[env_ids, i] = torch_rand_float(damping_range[0], damping_range[1], (len(env_ids), 1), device=self.device).reshape(-1)
+            else:
+                joint_damping_range = self.cfg.domain_rand.joint_damping_range
+                self.joint_damping_coeffs[env_ids] = torch_rand_float(joint_damping_range[0], joint_damping_range[1], (len(env_ids), 1), device=self.device)
+        
+        # rand joint armature inertia set in sim
+        if self.cfg.domain_rand.randomize_joint_armature:
+            if self.cfg.domain_rand.randomize_joint_armature_each_joint:
+                for i in range(self.num_dofs):
+                    range_key = f'joint_{i+1}_armature_range'
+                    armature_range = getattr(self.cfg.domain_rand, range_key)
+                    self.joint_armatures[env_ids, i] = torch_rand_float(armature_range[0], armature_range[1], (len(env_ids), 1), device=self.device).reshape(-1)
+            else:
+                joint_armature_range = self.cfg.domain_rand.joint_armature_range
+                self.joint_armatures[env_ids] = torch_rand_float(joint_armature_range[0], joint_armature_range[1], (len(env_ids), 1), device=self.device)
+    
+    def _randomize_rigid_body_props(self, env_ids):
+        if self.cfg.domain_rand.randomize_com_displacement:
+            min_com_displacement, max_com_displacement = self.cfg.domain_rand.com_displacement_range
+            self.com_displacements[env_ids, :] = torch.rand(len(env_ids), 3 * self.num_bodies, dtype=torch.float, device=self.device,requires_grad=False) * (max_com_displacement - min_com_displacement) + min_com_displacement
     
     def _low_pass_action_filter(self, actions):
         actons_filtered = self.last_actions * 0.2 + actions * 0.8
@@ -750,21 +909,24 @@ class DiabloPlusPro(BaseTask):
 
         joint_pos_target = self.lagged_actions_scaled + self.default_dof_pos
         # joint_pos_target = torch.clamp(joint_pos_target,self.dof_pos-1,self.dof_pos+1)
-
+        if self.cfg.domain_rand.randomize_kpkd:
+            p_gains = self.kp_factor * self.p_gains
+            d_gains = self.kd_factor * self.d_gains
+        else:
+            p_gains = self.p_gains
+            d_gains = self.d_gains
         control_type = self.cfg.control.control_type
         if control_type=="P":
-            if not self.cfg.domain_rand.randomize_kpkd:  # TODO add strength to gain directly
-                torques = self.p_gains*(joint_pos_target - self.dof_pos) - self.d_gains*self.dof_vel
-            else:
-                torques = self.kp_factor * self.p_gains*(joint_pos_target - self.dof_pos) - self.kd_factor * self.d_gains * self.dof_vel
+            torques = p_gains * (joint_pos_target - self.dof_pos) - d_gains * self.dof_vel
         elif control_type=="V":
-            torques = self.p_gains*(actions_scaled - self.dof_vel) - self.d_gains*(self.dof_vel - self.last_dof_vel)/self.sim_params.dt
+            torques = p_gains*(actions_scaled - self.dof_vel) - d_gains*(self.dof_vel - self.last_dof_vel)/self.sim_params.dt
         elif control_type=="T":
             torques = actions_scaled
         else:
             raise NameError(f"Unknown controller type: {control_type}")
         # torques[:,[2, 5]] = self.kd_factor[:,[2, 5]] * self.d_gains[[2, 5]] * (actions[:,[2,5]] * self.cfg.control.action_scale_vel - self.dof_vel[:,[2, 5]])
-        torques[:,[2, 5]] = self.kp_factor[:,[2, 5]]  * self.p_gains[[2, 5]] * (joint_pos_target[:,[2, 5]]) - self.kd_factor[:,[2, 5]] * self.d_gains[[2, 5]] * (self.dof_vel[:,[2, 5]])
+        # torques[:,[2, 5]] = self.kp_factor[:,[2, 5]]  * self.p_gains[[2, 5]] * (joint_pos_target[:,[2, 5]]) - self.kd_factor[:,[2, 5]] * self.d_gains[[2, 5]] * (self.dof_vel[:,[2, 5]])
+        torques[:,[2, 5]] = p_gains[:, [2, 5]] * (joint_pos_target[:,[2, 5]]) - d_gains[:, [2, 5]] * (self.dof_vel[:,[2, 5]])
         torques = torques * self.motor_strength
         return torch.clip(torques, -self.torque_limits, self.torque_limits)
 
@@ -826,7 +988,10 @@ class DiabloPlusPro(BaseTask):
         self._reset_dofs(env_ids)
         self._reset_root_states(env_ids)
         self._resample_commands(env_ids)
+        # add_rand
         self.randomize_lag_props(env_ids)
+        self._randomize_dof_props(env_ids)
+        self._refresh_actor_dof_props(env_ids)
 
         # reset buffers
         self.last_actions[env_ids] = 0.
@@ -891,7 +1056,7 @@ class DiabloPlusPro(BaseTask):
         # 使用固定的初始旋转
         self.root_states[env_ids, 3:7] = self.base_init_state[3:7]        # random height
         
-        self.root_states[env_ids, 2:3] += torch_rand_float(0, 0.2, (len(env_ids), 1), device=self.device)
+        # self.root_states[env_ids, 2:3] += torch_rand_float(0, 0.2, (len(env_ids), 1), device=self.device)
         env_ids_int32 = env_ids.to(dtype=torch.int32)
         self.gym.set_actor_root_state_tensor_indexed(self.sim,
                                                      gymtorch.unwrap_tensor(self.root_states),
@@ -1228,7 +1393,7 @@ class DiabloPlusPro(BaseTask):
             self.commands[env_ids, 3] = torch_rand_float(self.command_ranges["heading"][0], self.command_ranges["heading"][1], (len(env_ids), 1), device=self.device).squeeze(1)
         else:
             self.commands[env_ids, 2] = torch_rand_float(self.command_ranges["ang_vel_yaw"][0], self.command_ranges["ang_vel_yaw"][1], (len(env_ids), 1), device=self.device).squeeze(1)
-
+        self.commands[env_ids, 4] = torch_rand_float(self.command_ranges["height"][0], self.command_ranges["height"][1], (len(env_ids), 1), device=self.device).squeeze(1)
         # set small commands to zero
         self.commands[env_ids, :2] *= (torch.norm(self.commands[env_ids, :2], dim=1) > 0.2).unsqueeze(1)
     
@@ -1278,10 +1443,22 @@ class DiabloPlusPro(BaseTask):
         # Penalize non flat base orientation
         return torch.sum(torch.square(self.projected_gravity[:, :2]), dim=1)
 
+    # def _reward_base_height(self):
+    #     # Penalize base height away from target
+    #     base_height = torch.mean(self.root_states[:, 2].unsqueeze(1) - self.measured_heights, dim=1)
+    #     return torch.square(base_height - self.cfg.rewards.base_height_target)
     def _reward_base_height(self):
         # Penalize base height away from target
-        base_height = torch.mean(self.root_states[:, 2].unsqueeze(1) - self.measured_heights, dim=1)
-        return torch.square(base_height - self.cfg.rewards.base_height_target)
+        # print(self.commands[0, 2], self.base_height[0])
+        if self.cfg.commands.use_random_height:
+            target_height = self.commands[:, 4]
+        else:
+            target_height = self.cfg.rewards.base_height_target
+        if self.reward_scales["base_height"] < 0:
+            return torch.square(self.base_height - target_height)
+        else:
+            base_height_error = torch.square(self.base_height - target_height)
+            return torch.exp(-200 * base_height_error)
     
     def _reward_torques(self):
         # Penalize torques
@@ -1362,8 +1539,11 @@ class DiabloPlusPro(BaseTask):
         
     def _reward_stand_still(self):
         # Penalize motion at zero commands
-        return torch.sum(torch.abs(self.dof_pos[:, [0,1,3,4]] - self.default_dof_pos[:, [0,1,3,4]]), dim=1) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
-
+        # return torch.sum(torch.abs(self.dof_pos[:, [0,1,3,4]] - self.default_dof_pos[:, [0,1,3,4]]), dim=1) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
+        term_x = 5 * torch.square(self.base_lin_vel[:, 0])
+        term_y = torch.square(self.base_lin_vel[:, 1])
+        return (term_x + term_y) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
+    
     def _reward_feet_contact_forces(self):
         # penalize high contact forces
         return torch.sum((torch.norm(self.contact_forces[:, self.feet_indices, :], dim=-1) -  self.cfg.rewards.max_contact_force).clip(min=0.), dim=1)
@@ -1446,7 +1626,10 @@ class DiabloPlusPro(BaseTask):
         return -self.projected_gravity[:,2]
 
     def _reward_stand_nice(self):
-        return torch.sum(torch.abs(self.dof_pos[:, [0, 1, 3, 4]] - self.default_dof_pos[:, [0, 1, 3, 4]]), dim=1) * (1 - self.projected_gravity[:,2]) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
+        velocity_penalty = torch.sum(torch.abs(self.dof_vel[:, [0, 1, 3, 4]]), dim=1)
+        base_tilt_penalty = (1 - self.projected_gravity[:, 2])
+        is_static = (torch.norm(self.commands[:, :2], dim=1) < 0.1)
+        return velocity_penalty * base_tilt_penalty * is_static    
     
     #这个加上去怎么这么奇怪，有点像模型控制里的tilt
     def _reward_foot_relative_x(self):
@@ -1542,8 +1725,9 @@ class DiabloPlusPro(BaseTask):
     def _cost_base_height(self):
         # Penalize base height away from target
         base_height = torch.mean(self.root_states[:, 2].unsqueeze(1) - self.measured_heights, dim=1)
-        return torch.square(base_height - self.cfg.rewards.base_height_target)
-    
+        # return torch.square(base_height - self.cfg.rewards.base_height_target)
+        return torch.square(base_height - self.commands[:, 4]) # no cost for zero command
+
     def _cost_feet_air_time(self):
         # Reward long steps
         # Need to filter the contacts because the contact reporting of PhysX is unreliable on meshes

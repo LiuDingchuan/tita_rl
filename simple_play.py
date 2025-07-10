@@ -51,6 +51,7 @@ def log_and_plot_states(env, env_cfg, obs, infos, actions, logger, i):
                 "command_yaw": env.commands[robot_index, 1].item(),
                 "command_height": env.commands[robot_index, 2].item(),
                 "base_height": env.base_height[robot_index].item(),
+                "base_height_target": env.commands[robot_index, 4].item(),
                 "base_vel_x": env.base_lin_vel[robot_index, 0].item(),
                 "base_vel_y": env.base_lin_vel[robot_index, 1].item(),
                 "base_vel_z": env.base_lin_vel[robot_index, 2].item(),
@@ -218,7 +219,8 @@ def play(args):
         env.commands[:,0] = 1.0
         env.commands[:,1] = 0
         env.commands[:,2] = 0
-        env.commands[:,3] = 0
+        env.commands[:,3] = 0.0
+        env.commands[:,4] = 0.4 # height command
         actions = policy.act_teacher(obs)
         # actions = torch.clamp(actions,-1.2,1.2)
 
@@ -243,7 +245,7 @@ def play(args):
 
 if __name__ == '__main__':
     task_registry.register("tita",LeggedRobot,TitaConstraintHimRoughCfg(),TitaConstraintHimRoughCfgPPO())
-    task_registry.register("titatit",LeggedRobot,TitatiConstraintHimRoughCfg(),TitatiConstraintHimRoughCfgPPO())
+    # task_registry.register("titatit",LeggedRobot,TitatiConstraintHimRoughCfg(),TitatiConstraintHimRoughCfgPPO())
     task_registry.register(
         "diablo_pluspro", DiabloPlusPro, DiabloPlusProCfg(), DiabloPlusProCfgPPO()
     )

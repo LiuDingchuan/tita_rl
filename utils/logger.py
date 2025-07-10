@@ -79,14 +79,21 @@ class Logger:
         a.set(xlabel='time [s]', ylabel='base lin vel [m/s]', title='Base velocity z')
         a.legend()
         # plot contact forces
+        # a = axs[2, 0]
+        # if log["contact_forces_z"]:
+        #     forces = np.array(log["contact_forces_z"])
+        #     for i in range(forces.shape[1]):
+        #         a.plot(time, forces[:, i], label=f'force {i}')
+        # a.set(xlabel='time [s]', ylabel='Forces z [N]', title='Vertical Contact forces')
+        # a.legend()
+       # plot height
         a = axs[2, 0]
-        if log["contact_forces_z"]:
-            forces = np.array(log["contact_forces_z"])
-            for i in range(forces.shape[1]):
-                a.plot(time, forces[:, i], label=f'force {i}')
-        a.set(xlabel='time [s]', ylabel='Forces z [N]', title='Vertical Contact forces')
-        a.legend()
-        # plot torque/vel curves
+        if log["base_height"]:
+            a.plot(time, log["base_height"], label='measured')
+        if log["base_height_target"]:
+            a.plot(time, log["base_height_target"], label='target')
+        a.set(xlabel='time [s]', ylabel='Height [m]', title='Base Height')
+        a.legend()  # plot torque/vel curves        # plot torque/vel curves
         a = axs[2, 1]
         if log["dof_vel"] != [] and log["dof_torque"] != []: a.plot(log["dof_vel"], log["dof_torque"], 'x',
                                                                     label='measured')
