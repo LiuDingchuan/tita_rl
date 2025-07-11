@@ -52,7 +52,7 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         num_observations = n_proprio + n_scan + history_len * n_proprio + n_priv_latent
 
     class init_state(LeggedRobotCfg.init_state):
-        pos = [0.0, 0.0, 0.45]  # x,y,z [m]
+        pos = [0.0, 0.0, 0.5]  # x,y,z [m]
         rot = [0, 0.0, 0.0, 1]  # x, y, z, w [quat]
         lin_vel = [0.0, 0.0, 0.0]  # x, y, z [m/s]
         ang_vel = [0.0, 0.0, 0.0]  # x, y, z [rad/s]
@@ -93,12 +93,12 @@ class DiabloPlusProCfg(LeggedRobotCfg):
             lin_vel_y = [-1.0, 1.0]  # min max [m/s]
             ang_vel_yaw = [-1, 1]  # min max [rad/s]
             heading = [-1.57, 1.57]
-            height = [0.26, 0.4]
+            height = [0.3, 0.45]
 
     class asset(LeggedRobotCfg.asset):
 
         file = (
-            "{ROOT_DIR}/resources/diablo_pluspro_stand/urdf/diablo_pluspro_stand.urdf"
+            "{ROOT_DIR}/resources/diablo_pluspro/urdf/diablo_pluspro.urdf"
         )
         foot_name = "wheel"
         name = "diablo_pluspro"
@@ -111,7 +111,7 @@ class DiabloPlusProCfg(LeggedRobotCfg):
 
     class rewards(LeggedRobotCfg.rewards):
         soft_dof_pos_limit = 0.9
-        base_height_target = 0.4
+        base_height_target = 0.45
         foot_x_position_sigma = 0.01 #越小对x的约束越强
 
         class scales(LeggedRobotCfg.rewards.scales):
@@ -143,7 +143,7 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         randomize_restitution = True
         restitution_range = [0.0, 1.0] #恢复系数
         randomize_base_mass = True
-        added_mass_range = [-1.0, 3.0]
+        added_mass_range = [-5.0, 0.0]
         # randomize_base_com = True
         # added_com_range = [-0.2, 0.2]
         push_robots = True
@@ -186,7 +186,7 @@ class DiabloPlusProCfg(LeggedRobotCfg):
 
         randomize_joint_friction = True
         randomize_joint_friction_each_joint = False       
-        default_joint_friction = [0., 0., 0.01, 0., 0., 0.01]
+        default_joint_friction = [0.1, 0.1, 0.01, 0.1, 0.1, 0.01] #量纲好像不是Nm，
         joint_friction_range = [0.8, 1.2]
         joint_1_friction_range = [0.9, 1.1] #系数
         joint_2_friction_range = [0.9, 1.1]
@@ -197,8 +197,8 @@ class DiabloPlusProCfg(LeggedRobotCfg):
 
         randomize_joint_damping = True
         randomize_joint_damping_each_joint = True
-        default_joint_damping = [0.6, 0.6, 0.0,\
-                                 0.6, 0.6, 0.0,]
+        default_joint_damping = [0.0, 0.0, 0.0,\
+                                 0.0, 0.0, 0.0,]
         joint_damping_range = [0.8, 1.2]
         joint_1_damping_range = [0.8, 1.2] #系数
         joint_2_damping_range = [0.8, 1.2]
@@ -209,13 +209,17 @@ class DiabloPlusProCfg(LeggedRobotCfg):
 
         randomize_joint_armature = True   
         randomize_joint_armature_each_joint = True
-        joint_armature_range = [0.05, 0.10]    
-        joint_1_armature_range = [0.05, 0.10]
-        joint_2_armature_range = [0.05, 0.10]
+        joint_armature_range = [0.03, 0.6]    
+        joint_1_armature_range = [0.03, 0.6]
+        joint_2_armature_range = [0.03, 0.6]
         joint_3_armature_range = [0.003, 0.01]
-        joint_4_armature_range = [0.05, 0.10]
-        joint_5_armature_range = [0.05, 0.10]
+        joint_4_armature_range = [0.03, 0.6]
+        joint_5_armature_range = [0.03, 0.6]
         joint_6_armature_range = [0.003, 0.01]
+
+        randomize_coulomb_friction = True
+        joint_stick_friction_range = [0.1, 0.2] #静摩擦力，只与速度相关
+        joint_coulomb_friction_range = [0.0, 0.0] #与速度相关的摩擦力，近似于粘性摩擦
 
     class depth(LeggedRobotCfg.depth):
         use_camera = False
@@ -303,7 +307,7 @@ class DiabloPlusProCfgPPO(LeggedRobotCfgPPO):
         imi_flag = False
 
     class runner(LeggedRobotCfgPPO.runner):
-        run_name = "stair_with_capsule"
+        run_name = "stair_with_new_urdf"
         experiment_name = "diablo_pluspro"
         policy_class_name = "ActorCriticBarlowTwins"
         runner_class_name = "OnConstraintPolicyRunner"

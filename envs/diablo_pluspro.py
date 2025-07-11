@@ -3,7 +3,7 @@ Description:
 Version: 2.0
 Author: Dandelion
 Date: 2025-03-13 18:16:15
-LastEditTime: 2025-07-10 18:11:55
+LastEditTime: 2025-07-10 21:01:26
 FilePath: /tita_rl/envs/diablo_pluspro.py
 '''
 import numpy as np
@@ -223,9 +223,9 @@ class DiabloPlusPro(BaseTask):
         #                         requires_grad=False)
         # self.gravity_vec = to_torch(get_axis_params(-1., self.up_axis_idx), device=self.device).repeat(
         #     (self.num_envs, 1))
-        # if self.cfg.domain_rand.randomize_coulomb_friction:
-        #     self.randomized_joint_coulomb_friction = torch.zeros(self.num_envs,self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
-        #     self.randomized_joint_stick_friction = torch.zeros(self.num_envs,self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)        
+        if self.cfg.domain_rand.randomize_coulomb_friction:
+            self.randomized_joint_coulomb_friction = torch.zeros(self.num_envs,self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
+            self.randomized_joint_stick_friction = torch.zeros(self.num_envs,self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)        
         if self.cfg.domain_rand.randomize_joint_friction:
             if self.cfg.domain_rand.randomize_joint_friction_each_joint:
                 self.joint_friction_coeffs = torch.ones(self.num_envs, self.num_dofs, dtype=torch.float, device=self.device,requires_grad=False)
@@ -827,6 +827,17 @@ class DiabloPlusPro(BaseTask):
 # random_function
 # ============================================================
     def _randomize_dof_props(self, env_ids ):
+        # rand joint friciton on torque
+        if self.cfg.domain_rand.randomize_coulomb_friction:
+            min_joint_coulomb, max_joint_coulomb = self.cfg.domain_rand.joint_coulomb_friction_range
+            self.randomized_joint_coulomb_friction[env_ids, :] = torch.rand(len(env_ids), dtype=torch.float, device=self.device,
+                                                     requires_grad=False).unsqueeze(1) * (
+                                                  max_joint_coulomb - min_joint_coulomb) + min_joint_coulomb
+
+            min_joint_stick_friction, max_joint_stick_friction = self.cfg.domain_rand.joint_stick_friction_range
+            self.randomized_joint_stick_friction[env_ids, :] = torch.rand(len(env_ids), dtype=torch.float, device=self.device,
+                                                     requires_grad=False).unsqueeze(1) * (
+                                                  max_joint_stick_friction - min_joint_stick_friction) + min_joint_stick_friction
         # rand joint friction set in sim
         if self.cfg.domain_rand.randomize_joint_friction:
             if self.cfg.domain_rand.randomize_joint_friction_each_joint:
@@ -927,6 +938,8 @@ class DiabloPlusPro(BaseTask):
         # torques[:,[2, 5]] = self.kd_factor[:,[2, 5]] * self.d_gains[[2, 5]] * (actions[:,[2,5]] * self.cfg.control.action_scale_vel - self.dof_vel[:,[2, 5]])
         # torques[:,[2, 5]] = self.kp_factor[:,[2, 5]]  * self.p_gains[[2, 5]] * (joint_pos_target[:,[2, 5]]) - self.kd_factor[:,[2, 5]] * self.d_gains[[2, 5]] * (self.dof_vel[:,[2, 5]])
         torques[:,[2, 5]] = p_gains[:, [2, 5]] * (joint_pos_target[:,[2, 5]]) - d_gains[:, [2, 5]] * (self.dof_vel[:,[2, 5]])
+        if(self.cfg.domain_rand.randomize_coulomb_friction):
+            torques -= (self.randomized_joint_coulomb_friction * self.dof_vel + self.randomized_joint_stick_friction * torch.sign(self.dof_vel))
         torques = torques * self.motor_strength
         return torch.clip(torques, -self.torque_limits, self.torque_limits)
 

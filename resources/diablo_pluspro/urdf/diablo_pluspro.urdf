@@ -3,7 +3,7 @@
      Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
      For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
 <robot
-  name="diablo_pluspro_stand">
+  name="diablo_pluspro">
   <material name="black">
     <color rgba="0.0 0.0 0.0 1.0"/>
   </material>
@@ -35,17 +35,17 @@
     name="base_link">
     <inertial>
       <origin
-        xyz="0.002891789 -0.051042522 0.16336951"
+        xyz="0.0028918 -0.00051043 0.10837"
         rpy="0 0 0" />
       <mass
         value="16.387" />
       <inertia
-        ixx="0.60137552"
-        ixy="0.061364762"
-        ixz="-0.0046440866"
-        iyy="0.61932646"
-        iyz="-0.0029737006"
-        izz="0.35956664" />
+        ixx="0.60138"
+        ixy="0.061341"
+        ixz="-0.0046441"
+        iyy="0.61933"
+        iyz="-0.0029737"
+        izz="0.35943" />
     </inertial>
     <visual>
       <origin
@@ -71,10 +71,11 @@
       </geometry>
     </collision>
   </link>
-  <link name="left_hip_link">
+  <link
+    name="left_hip_link">
     <inertial>
       <origin
-        xyz="-0.011467728 -0.028358373 -0.012566631"
+        xyz="-0.011467728 -0.02835837 -0.012566631"
         rpy="0 0 0" />
       <mass
         value="2.3922754" />
@@ -114,7 +115,7 @@
     name="left_hip_joint"
     type="revolute">
     <origin
-      xyz="0 0.14844 0.0547374"
+      xyz="0 0.14844 0"
       rpy="0 0 0" />
     <parent
       link="base_link" />
@@ -122,7 +123,6 @@
       link="left_hip_link" />
     <axis
       xyz="0 1 0" />
-    <dynamics damping="1.0" friction="0.0" />
     <limit
       lower="-1.57"
       upper="1.57"
@@ -173,7 +173,7 @@
     name="left_knee_joint"
     type="revolute">
     <origin
-      xyz="-0.124016 0 -0.156908"
+      xyz="-0.12022 0 -0.15983"
       rpy="0 0 0" />
     <parent
       link="left_hip_link" />
@@ -181,14 +181,13 @@
       link="left_knee_link" />
     <axis
       xyz="0 1 0" />
-    <dynamics damping="1.0" friction="0.0" />
     <limit
       lower="-1.19"
       upper="0"
       effort="60"
       velocity="15" />
   </joint>
-  <link
+ <link
     name="left_wheel_link">
     <inertial>
       <origin
@@ -218,7 +217,7 @@
     </visual>
     <collision>
       <origin
-        xyz="0 0.02 0"
+        xyz="0 0.053 0"
         rpy="1.5707963 0 0" />
       <geometry>
         <cylinder radius="0.16" length="0.035"/>
@@ -229,7 +228,7 @@
     name="left_wheel_joint"
     type="revolute">
     <origin
-      xyz="0.133344 0 -0.149062"
+      xyz="0.13397 0 -0.1485"
       rpy="0 0 0" />
     <parent
       link="left_knee_link" />
@@ -238,13 +237,13 @@
     <axis
       xyz="0 1 0" />
     <limit
-      lower="-1000000" 
-      upper="1000000"      
+      lower="-1000000"
+      upper="1000000"
       effort="20"
       velocity="30" />
-    <dynamics friction="0.01" />
   </joint>
-  <link name="right_hip_link">
+  <link
+    name="right_hip_link">
     <inertial>
       <origin
         xyz="-0.011467728 0.028358373 -0.012566631"
@@ -287,7 +286,7 @@
     name="right_hip_joint"
     type="revolute">
     <origin
-      xyz="0 -0.14844 0.0547374"
+      xyz="0 -0.1484 0"
       rpy="0 0 0" />
     <parent
       link="base_link" />
@@ -295,7 +294,6 @@
       link="right_hip_link" />
     <axis
       xyz="0 1 0" />
-    <dynamics damping="1.0" friction="0.0" />
     <limit
       lower="-1.57"
       upper="1.57"
@@ -304,7 +302,7 @@
   </joint>
   <link
     name="right_knee_link">
-    <inertial>
+   <inertial>
       <origin
         xyz="0.05294369 0.0059746 -0.081982"
         rpy="0 0 0" />
@@ -346,7 +344,7 @@
     name="right_knee_joint"
     type="revolute">
     <origin
-      xyz="-0.124016 0 -0.156908"
+      xyz="-0.12022 0 -0.15983"
       rpy="0 0 0" />
     <parent
       link="right_hip_link" />
@@ -354,7 +352,6 @@
       link="right_knee_link" />
     <axis
       xyz="0 1 0" />
-    <dynamics damping="1.0" friction="0.0" />
     <limit
       lower="-1.19"
       upper="0"
@@ -391,7 +388,7 @@
     </visual>
     <collision>
       <origin
-        xyz="0 -0.02 0"
+        xyz="0 -0.053 0"
         rpy="1.5707963 0 0" />
       <geometry>
         <cylinder radius="0.16" length="0.035"/>
@@ -402,7 +399,7 @@
     name="right_wheel_joint"
     type="revolute">
     <origin
-      xyz="0.133344 0 -0.149062"
+      xyz="0.13397 0 -0.1485"
       rpy="0 0 0" />
     <parent
       link="right_knee_link" />
@@ -411,10 +408,9 @@
     <axis
       xyz="0 1 0" />
     <limit
-      lower="-1000000" 
-      upper="1000000"      
+      lower="-1000000"
+      upper="1000000"
       effort="20"
       velocity="30" />
-    <dynamics friction="0.01" />
   </joint>
 </robot>
