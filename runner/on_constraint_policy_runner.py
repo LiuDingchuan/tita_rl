@@ -131,14 +131,15 @@ class OnConstraintPolicyRunner:
             # # else:
             # #     print("lag is off")
             if self.alg.actor_critic.imi_flag and self.cfg['resume']: 
-                step_size = 1/int(tot_iter/2)
-                imi_weight = max(0,1 - it * step_size)
+                # step_size = 1/int(tot_iter/2)
+                step_size = 1 / num_learning_iterations
+                imi_weight = max(0, 1 - (it-self.current_learning_iteration) * step_size)
                 print("imi_weight:",imi_weight)
                 self.alg.set_imi_weight(imi_weight)
             
             start = time.time()
             # Rollout
-            with torch.inference_mode():
+            with torch.inference_mode(): #提高推理效率
                 for i in range(self.num_steps_per_env):
                    
                     actions = self.alg.act(obs, critic_obs, infos)
@@ -155,7 +156,7 @@ class OnConstraintPolicyRunner:
                         cur_episode_length += 1
                         new_ids = (dones > 0).nonzero(as_tuple=False)
                         rewbuffer.extend(cur_reward_sum[new_ids][:, 0].cpu().numpy().tolist())
-                        lenbuffer.extend(cur_episode_length[new_ids][:, 0].cpu().numpy().tolist())
+                        lenbuffer.extend(cur_episode_length[new_ids][:, 0].cpu().numpy().tolist()) #记录最新完成的episode的奖励与长度
                         cur_reward_sum[new_ids] = 0
                         cur_episode_length[new_ids] = 0
 

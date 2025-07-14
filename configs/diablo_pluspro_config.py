@@ -162,11 +162,11 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         lag_timesteps = 6
         lag_timesteps_range = [1, 6] # 1~10ms
 
-        add_dof_lag = False
+        add_dof_lag = True
         randomize_dof_lag_timesteps = True
         dof_lag_timesteps_range = [0, 2] # 1~4ms
 
-        add_imu_lag = False # 现在是euler，需要projected gravity 
+        add_imu_lag = True # 现在是euler，需要projected gravity 
         randomize_imu_lag_timesteps = True
         imu_lag_timesteps_range = [0, 2] # 实际10~22ms
 
@@ -180,7 +180,7 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         link_com_displacement_range_factor = 0.02   # link com的随机化比例(与com_displacement_range相乘)
 
         randomize_inertia = True    
-        randomize_inertia_range = [0.8, 1.2]
+        randomize_inertia_range = [0.7, 1.2]
 
         rand_interval = 10  # Randomization interval in seconds
 
@@ -269,7 +269,7 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         num_costs = 6
 
     class terrain(LeggedRobotCfg.terrain):
-        mesh_type = "trimesh"  # "heightfield" # none, plane, heightfield or trimesh
+        mesh_type = "plane"  # "heightfield" # none, plane, heightfield or trimesh
         measure_heights = True
         include_act_obs_pair_buf = False  # 是否包含动作观察对缓冲区
         terrain_proportions = [0.1, 0.2, 0.35, 0.35, 0.0]
@@ -304,15 +304,15 @@ class DiabloPlusProCfgPPO(LeggedRobotCfgPPO):
         num_costs = 6
 
         teacher_act = True
-        imi_flag = False
+        imi_flag = True
 
     class runner(LeggedRobotCfgPPO.runner):
-        run_name = "stair_with_new_urdf"
+        run_name = "RMA_teacher_plane"
         experiment_name = "diablo_pluspro"
-        policy_class_name = "ActorCriticBarlowTwins"
+        policy_class_name = "ActorCriticRMA"
         runner_class_name = "OnConstraintPolicyRunner"
         algorithm_class_name = "NP3O"
-        max_iterations = 10000
+        max_iterations = 5000
         num_steps_per_env = 24
         resume = False
         resume_path = ""

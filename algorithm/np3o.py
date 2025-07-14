@@ -96,7 +96,7 @@ class NP3O:
         self.imi_weight = value
 
     def act(self, obs, critic_obs, info):
-        if self.actor_critic.is_recurrent:
+        if self.actor_critic.is_recurrent: #如果策略是循环或序列模型
             self.transition.hidden_states = self.actor_critic.get_hidden_states()
         self.transition.actions = self.actor_critic.act(obs).detach()
         self.transition.values = self.actor_critic.evaluate(critic_obs).detach()

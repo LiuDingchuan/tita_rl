@@ -363,7 +363,7 @@ class ActorCriticRMA(nn.Module):
             print("no imitation")
 
         if len(priv_encoder_dims) > 0:
-            priv_encoder_layers = mlp_factory(activation,num_priv_latent,None,priv_encoder_dims,last_act=True)
+            priv_encoder_layers = mlp_factory(activation, num_priv_latent, None,priv_encoder_dims,last_act=True)
             self.priv_encoder = nn.Sequential(*priv_encoder_layers)
             priv_encoder_output_dim = priv_encoder_dims[-1]
         else:
@@ -438,14 +438,25 @@ class ActorCriticRMA(nn.Module):
     @property
     def entropy(self):
         return self.distribution.entropy().sum(dim=-1)
-
+    '''
+    description: 根据当前观测更新动作的概率分布
+    param {*} self
+    param {*} obs
+    return {*}
+    '''    
     def update_distribution(self, obs):
         if self.teacher_act:
             mean = self.act_teacher(obs)
         else:
             mean = self.act_student(obs)
-        self.distribution = Normal(mean, mean*0. + self.get_std())
-
+        self.distribution = Normal(mean, mean*0. + self.get_std()) #构造正态分布
+    '''
+    description: 策略网络的核心，根据当前观测obs来生成动作
+    param {*} self
+    param {*} obs
+    param {object} kwargs
+    return {*}
+    '''
     def act(self, obs,**kwargs):
         self.update_distribution(obs)
         return self.distribution.sample()
@@ -513,7 +524,7 @@ class ActorCriticRMA(nn.Module):
         return loss
     
     def imitation_mode(self):
-        self.actor_teacher_backbone.eval()
+        self.actor_teacher_backbone.eval() #eval切换到评估模式
         self.scan_encoder.eval()
         self.priv_encoder.eval()
     
