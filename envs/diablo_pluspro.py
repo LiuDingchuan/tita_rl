@@ -3,7 +3,7 @@ Description:
 Version: 2.0
 Author: Dandelion
 Date: 2025-03-13 18:16:15
-LastEditTime: 2025-07-10 21:01:26
+LastEditTime: 2025-07-16 22:16:24
 FilePath: /tita_rl/envs/diablo_pluspro.py
 '''
 import numpy as np
@@ -521,7 +521,7 @@ class DiabloPlusPro(BaseTask):
         
         # add perceptive inputs if not blind
         if self.cfg.terrain.measure_heights:
-            heights = torch.clip(self.root_states[:, 2].unsqueeze(1) - 0.4 - self.measured_heights, -1, 1.)*self.obs_scales.height_measurements
+            heights = torch.clip(self.root_states[:, 2].unsqueeze(1) - 0.45 - self.measured_heights, -1, 1.)*self.obs_scales.height_measurements
             self.obs_buf = torch.cat([obs_buf, heights, priv_latent, self.obs_history_buf.view(self.num_envs, -1)], dim=-1)
         else:
             self.obs_buf = torch.cat([obs_buf, priv_latent, self.obs_history_buf.view(self.num_envs, -1)], dim=-1)
@@ -1462,15 +1462,15 @@ class DiabloPlusPro(BaseTask):
     #     return torch.square(base_height - self.cfg.rewards.base_height_target)
     def _reward_base_height(self):
         # Penalize base height away from target
-        # print(self.commands[0, 2], self.base_height[0])
+        base_height = torch.mean(self.root_states[:, 2].unsqueeze(1) - self.measured_heights, dim=1)
         if self.cfg.commands.use_random_height:
             target_height = self.commands[:, 4]
         else:
             target_height = self.cfg.rewards.base_height_target
         if self.reward_scales["base_height"] < 0:
-            return torch.square(self.base_height - target_height)
+            return torch.square(base_height - target_height)
         else:
-            base_height_error = torch.square(self.base_height - target_height)
+            base_height_error = torch.square(base_height - target_height)
             return torch.exp(-200 * base_height_error)
     
     def _reward_torques(self):
@@ -1644,7 +1644,7 @@ class DiabloPlusPro(BaseTask):
         is_static = (torch.norm(self.commands[:, :2], dim=1) < 0.1)
         return velocity_penalty * base_tilt_penalty * is_static    
     
-    #这个加上去怎么这么奇怪，有点像模型控制里的tilt
+    #计算每只脚在机器人body系下的x方向位置误差（希望都接近于0)，惩罚脚偏离原点x轴距离
     def _reward_foot_relative_x(self):
         cur_footpos_translated = self.foot_positions - self.root_states[:, 0:3].unsqueeze(1) #脚部在全局坐标系中的位置与头部质心位置的差值
         footpos_in_body_frame = torch.zeros(self.num_envs, 2, 3, device=self.device)
@@ -1656,8 +1656,9 @@ class DiabloPlusPro(BaseTask):
         rew_foot_relative_x = torch.sum(torch.square(footpos_x_err_in_body_frame),dim=-1)
         return rew_foot_relative_x
     
+    #奖励左右脚对称
     def _reward_same_foot_x_position(self):
-        cur_footpos_translated = self.foot_positions - self.root_states[:, 0:3].unsqueeze(1) #脚部在全局坐标系中的位置
+        cur_footpos_translated = self.foot_positions - self.root_states[:, 0:3].unsqueeze(1) #脚部在全局坐标系中的位置与头部质心位置的差值
         footpos_in_body_frame = torch.zeros(self.num_envs, 2, 3, device=self.device)
         for i in range(len(self.feet_indices)):
             footpos_in_body_frame[:, i, :] = quat_rotate_inverse(self.base_quat, cur_footpos_translated[:, i, :]) #转换到body系

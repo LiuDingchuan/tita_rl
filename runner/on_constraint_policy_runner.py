@@ -143,10 +143,10 @@ class OnConstraintPolicyRunner:
                 for i in range(self.num_steps_per_env):
                    
                     actions = self.alg.act(obs, critic_obs, infos)
-                    obs, privileged_obs, rewards,costs,dones, infos = self.env.step(actions)  # obs has changed to next_obs !! if done obs has been reset
+                    obs, privileged_obs, rewards, costs,dones, infos = self.env.step(actions)  # obs has changed to next_obs !! if done obs has been reset
                     critic_obs = privileged_obs if privileged_obs is not None else obs
                     obs, critic_obs,rewards,costs,dones = obs.to(self.device), critic_obs.to(self.device), rewards.to(self.device),costs.to(self.device),dones.to(self.device)
-                    self.alg.process_env_step(rewards,costs,dones, infos)
+                    self.alg.process_env_step(rewards, costs, dones, infos)
 
                     if self.log_dir is not None:
                         # Book keeping

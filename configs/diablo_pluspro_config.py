@@ -52,7 +52,7 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         num_observations = n_proprio + n_scan + history_len * n_proprio + n_priv_latent
 
     class init_state(LeggedRobotCfg.init_state):
-        pos = [0.0, 0.0, 0.5]  # x,y,z [m]
+        pos = [0.0, 0.0, 0.6]  # x,y,z [m]
         rot = [0, 0.0, 0.0, 1]  # x, y, z, w [quat]
         lin_vel = [0.0, 0.0, 0.0]  # x, y, z [m/s]
         ang_vel = [0.0, 0.0, 0.0]  # x, y, z [rad/s]
@@ -86,7 +86,7 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         resampling_time = 10.0  # time before command are changed[s]
         heading_command = True  # if true: compute ang vel command from heading error
         global_reference = False
-        use_random_height = True
+        use_random_height = False
 
         class ranges:
             lin_vel_x = [-1.0, 1.0]  # min max [m/s]
@@ -105,35 +105,36 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         penalize_contacts_on = ["hip_link", "knee_link", "base_link"]
         terminate_after_contacts_on = ["base_link"]
         self_collisions = 1  # 1 to disable, 0 to enable...bitwise filter
-        flip_visual_attachments = False
+        flip_visual_attachments = False # 是否翻转视觉附件
         replace_cylinder_with_capsule = True
         armature = 0.0422
 
     class rewards(LeggedRobotCfg.rewards):
         soft_dof_pos_limit = 0.9
-        base_height_target = 0.45
+        base_height_target = 0.5
         foot_x_position_sigma = 0.01 #越小对x的约束越强
 
         class scales(LeggedRobotCfg.rewards.scales):
             torques = 0.0
             powers = -2e-5
             termination = -100
-            tracking_lin_vel = 2.0
+            tracking_lin_vel = 5.0
             tracking_ang_vel = 2.0
             lin_vel_z = -0.0
-            ang_vel_xy = -0.05
+            ang_vel_xy = -0.01
             dof_vel = 0.0
             dof_acc = -2.5e-7
-            base_height = 1.0
+            base_height = -10.0
             feet_air_time = 0.0
             collision = -1.0
-            stumble = 0.0
+            stumble = -100.0
             action_rate = -0.01
-            # action_smoothness = 0
+            action_smoothness = 0
             stand_still = -0.5 #要给负值才能有起到使其在0输入时关节少动的效果
             # foot_clearance = -0.0
-            orientation = -10.0
+            orientation = -50.0
             stand_nice = -0.2
+            foot_relative_x = -0.1  # 惩罚脚偏离原点x轴距离
             same_foot_x_position = 0.1
             inclination = 0.0
 
@@ -159,8 +160,8 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         ##delay lag
         add_action_lag = True
         randomize_lag_timesteps = True
-        lag_timesteps = 6
-        lag_timesteps_range = [1, 6] # 1~10ms
+        lag_timesteps = 3
+        lag_timesteps_range = [1, 5] # 1~6ms
 
         add_dof_lag = True
         randomize_dof_lag_timesteps = True
@@ -180,7 +181,7 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         link_com_displacement_range_factor = 0.02   # link com的随机化比例(与com_displacement_range相乘)
 
         randomize_inertia = True    
-        randomize_inertia_range = [0.7, 1.2]
+        randomize_inertia_range = [0.8, 1.2]
 
         rand_interval = 10  # Randomization interval in seconds
 
@@ -253,7 +254,8 @@ class DiabloPlusProCfg(LeggedRobotCfg):
             acc_smoothness = 0.1
             # collision = 0.1
             feet_contact_forces = 0.1
-            stumble = 0.1
+            base_height = 0.2
+            stumble = 0.3
 
         class d_values:
             pos_limit = 0.0
@@ -263,13 +265,14 @@ class DiabloPlusProCfg(LeggedRobotCfg):
             acc_smoothness = 0.0
             # collision = 0.0
             feet_contact_forces = 0.0
+            base_height = 0.0
             stumble = 0.0
 
     class cost:
-        num_costs = 6
+        num_costs = 7
 
     class terrain(LeggedRobotCfg.terrain):
-        mesh_type = "plane"  # "heightfield" # none, plane, heightfield or trimesh
+        mesh_type = "trimesh"  # "heightfield" # none, plane, heightfield or trimesh
         measure_heights = True
         include_act_obs_pair_buf = False  # 是否包含动作观察对缓冲区
         terrain_proportions = [0.1, 0.2, 0.35, 0.35, 0.0]
@@ -301,15 +304,15 @@ class DiabloPlusProCfgPPO(LeggedRobotCfgPPO):
         rnn_num_layers = 1
 
         tanh_encoder_output = False
-        num_costs = 6
+        num_costs = 7
 
         teacher_act = True
         imi_flag = True
 
     class runner(LeggedRobotCfgPPO.runner):
-        run_name = "RMA_teacher_plane"
+        run_name = "recover_stair_imi"
         experiment_name = "diablo_pluspro"
-        policy_class_name = "ActorCriticRMA"
+        policy_class_name = "ActorCriticBarlowTwins"
         runner_class_name = "OnConstraintPolicyRunner"
         algorithm_class_name = "NP3O"
         max_iterations = 5000

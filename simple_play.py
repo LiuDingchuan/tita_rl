@@ -151,7 +151,8 @@ def play(args):
                                                       env.cfg.env.n_priv_latent,
                                                       env.cfg.env.history_len,
                                                       env.num_actions,
-                                                      **policy_cfg_dict)
+                                                      **policy_cfg_dict)#这里是直接用配置参数新建了一个策略网络实例，此时它还没有加载任何训练好的权重
+    #只是一个空白的网络
     print(policy)
     #################新方法，从最新一次的路径直接加载模型，且会根据task名字自动检索#################
     train_cfg.runner.resume = True
@@ -219,7 +220,7 @@ def play(args):
         env.commands[:,0] = 1.0
         env.commands[:,1] = 0
         env.commands[:,2] = 0
-        env.commands[:,3] = 0.0
+        env.commands[:,3] = 0.25
         env.commands[:,4] = 0.4 # height command
         actions = policy.act_teacher(obs)
         # actions = torch.clamp(actions,-1.2,1.2)

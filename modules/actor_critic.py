@@ -533,7 +533,13 @@ class ActorCriticRMA(nn.Module):
         obs_demo_input = torch.randn(1,self.num_prop).to(device)
         hist_demo_input = torch.randn(1,self.num_hist,self.num_prop).to(device)
         model_jit = torch.jit.trace(self.actor_student_backbone,(obs_demo_input,hist_demo_input))
-        model_jit.save(path)
+        model_jit.save(f"{path}/sim2sim.pt")
+        torch_out = torch.onnx.export(self.actor_student_backbone,
+                    (obs_demo_input,hist_demo_input),
+                    f"{path}/sim2sim.onnx",
+                    verbose=True,
+                    export_params=True
+                    )
 
 class ActorCriticBarlowTwins(nn.Module):
     is_recurrent = False
@@ -673,9 +679,9 @@ class ActorCriticBarlowTwins(nn.Module):
         return self.distribution.log_prob(actions).sum(dim=-1)
     
     def act_teacher(self,obs, **kwargs):
-        obs_prop = obs[:, :self.num_prop]
-        obs_hist = obs[:, -self.num_hist*self.num_prop:].view(-1, self.num_hist, self.num_prop)
-        mean = self.actor_teacher_backbone(obs_prop,obs_hist)
+        obs_prop = obs[:, :self.num_prop] #本体属性观测
+        obs_hist = obs[:, -self.num_hist*self.num_prop:].view(-1, self.num_hist, self.num_prop) #历史观测序列
+        mean = self.actor_teacher_backbone(obs_prop, obs_hist)
         return mean
         
     def evaluate(self, obs, **kwargs):

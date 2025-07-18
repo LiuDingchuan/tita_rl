@@ -14,7 +14,7 @@ class LeggedRobotCfg(BaseConfig):
         num_actions = 8
         env_spacing = 3.  # not used with heightfields/trimeshes 
         send_timeouts = True # send time out information to the algorithm
-        episode_length_s = 20 # episode length in seconds
+        episode_length_s = 20 # episode length in seconds 最长可以进行的episode_lengt，超过会reset
 
         history_encoding = True
 
