@@ -3,7 +3,7 @@ Description:
 Version: 2.0
 Author: Dandelion
 Date: 2025-03-13 18:16:15
-LastEditTime: 2025-07-16 22:16:24
+LastEditTime: 2025-07-23 20:25:10
 FilePath: /tita_rl/envs/diablo_pluspro.py
 '''
 import numpy as np
@@ -88,11 +88,14 @@ class DiabloPlusPro(BaseTask):
         self.gym.refresh_force_sensor_tensor(self.sim)
 
         # create some wrapper tensors for different slices
+        self.fail_buf = torch.zeros(self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
+        self.edge_reset_buf = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device, requires_grad=False)
         self.root_states = gymtorch.wrap_tensor(actor_root_state)
         self.rigid_body_states = gymtorch.wrap_tensor(rigid_body_state_tensor).view(self.num_envs, -1, 13)
         self.dof_state = gymtorch.wrap_tensor(dof_state_tensor)
         self.dof_pos = self.dof_state.view(self.num_envs, self.num_dof, 2)[..., 0]
         self.dof_vel = self.dof_state.view(self.num_envs, self.num_dof, 2)[..., 1]
+        self.base_pos = self.root_states[:, 0:3]
         self.base_quat = self.root_states[:, 3:7]
         self.foot_velocities = self.rigid_body_states[:,
                                self.feet_indices,
@@ -565,6 +568,7 @@ class DiabloPlusPro(BaseTask):
         self.common_step_counter += 1
 
         # prepare quantities
+        self.base_pos[:] = self.root_states[:, 0:3]
         self.base_quat[:] = self.root_states[:, 3:7]
         self.base_lin_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])
         self.base_ang_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 10:13])
@@ -946,10 +950,24 @@ class DiabloPlusPro(BaseTask):
     def check_termination(self):
         """ Check if environments need to be reset
         """
+        fail_buf = torch.any(torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 1.,
+                                   dim=1)
+        fail_buf |= self.projected_gravity[:, 2] > -0.7
+        self.fail_buf *= fail_buf
+        self.fail_buf += fail_buf
         self.reset_buf = torch.any(torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 1.,
                                    dim=1)
-        self.time_out_buf = self.episode_length_buf > self.max_episode_length  # no terminal reward for time-outs
-        self.reset_buf |= self.time_out_buf
+        self.time_out_buf = (self.episode_length_buf > self.max_episode_length)  # no terminal reward for time-outs
+        if self.cfg.terrain.mesh_type in ["heightfield", "trimesh"]:
+            self.edge_reset_buf = self.base_pos[:, 0] > self.terrain_x_max - 1
+            self.edge_reset_buf |= self.base_pos[:, 0] < self.terrain_x_min + 1
+            self.edge_reset_buf |= self.base_pos[:, 1] > self.terrain_y_max - 1
+            self.edge_reset_buf |= self.base_pos[:, 1] < self.terrain_y_min + 1 #-1 和 +1是为了避免机器人刚好在边界上,刚踩到边界就被判定越界
+            self.reset_buf |= self.edge_reset_buf
+        self.reset_buf = ((self.fail_buf > self.cfg.env.fail_to_terminal_time_s / self.dt)
+                          | self.time_out_buf
+                          | self.edge_reset_buf)
+
 
     def compute_reward(self):
         """ Compute rewards
@@ -1014,6 +1032,7 @@ class DiabloPlusPro(BaseTask):
         self.feet_air_time[env_ids] = 0.
         self.episode_length_buf[env_ids] = 0
         self.reset_buf[env_ids] = 1
+        self.fail_buf[env_ids] = 0
         self.obs_history_buf[env_ids, :, :] = 0.
         self.contact_buf[env_ids, :, :] = 0.
         self.action_history_buf[env_ids, :, :] = 0.
@@ -1272,6 +1291,10 @@ class DiabloPlusPro(BaseTask):
             self.max_terrain_level = self.cfg.terrain.num_rows
             self.terrain_origins = torch.from_numpy(self.terrain.env_origins).to(self.device).to(torch.float)
             self.env_origins[:] = self.terrain_origins[self.terrain_levels, self.terrain_types]
+            self.terrain_x_max = (self.cfg.terrain.num_rows * self.cfg.terrain.terrain_length + self.cfg.terrain.border_size)
+            self.terrain_x_min = -self.cfg.terrain.border_size
+            self.terrain_y_max = (self.cfg.terrain.num_cols * self.cfg.terrain.terrain_length + self.cfg.terrain.border_size)
+            self.terrain_y_min = -self.cfg.terrain.border_size
         else:
             self.custom_origins = False
             self.env_origins = torch.zeros(self.num_envs, 3, device=self.device, requires_grad=False)
@@ -1503,7 +1526,7 @@ class DiabloPlusPro(BaseTask):
     
     def _reward_termination(self):
         # Terminal reward / penalty
-        return self.reset_buf * ~self.time_out_buf
+        return self.reset_buf * ~self.time_out_buf * ~self.edge_reset_buf
     
     def _reward_dof_pos_limits(self):
         # Penalize dof positions too close to the limit
@@ -1522,7 +1545,7 @@ class DiabloPlusPro(BaseTask):
 
     def _reward_tracking_lin_vel(self):
         # Tracking of linear velocity commands (xy axes)
-        lin_vel_error = torch.sum(torch.square(self.commands[:, :2] - self.base_lin_vel[:, :2]), dim=1)
+        lin_vel_error = torch.square(self.commands[:, 0] - self.base_lin_vel[:, 0])
         return torch.exp(-lin_vel_error/self.cfg.rewards.tracking_sigma)
     
     def _reward_tracking_ang_vel(self):
@@ -1553,9 +1576,10 @@ class DiabloPlusPro(BaseTask):
     def _reward_stand_still(self):
         # Penalize motion at zero commands
         # return torch.sum(torch.abs(self.dof_pos[:, [0,1,3,4]] - self.default_dof_pos[:, [0,1,3,4]]), dim=1) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
+        term_pos = torch.sum(torch.square(self.dof_pos[:, [0,1,3,4]] - self.default_dof_pos[:, [0,1,3,4]]), dim=1)
         term_x = 5 * torch.square(self.base_lin_vel[:, 0])
-        term_y = torch.square(self.base_lin_vel[:, 1])
-        return (term_x + term_y) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
+        # term_y = torch.square(self.base_lin_vel[:, 1])
+        return (term_x + term_pos) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
     
     def _reward_feet_contact_forces(self):
         # penalize high contact forces

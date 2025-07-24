@@ -220,8 +220,8 @@ def play(args):
         env.commands[:,0] = 1.0
         env.commands[:,1] = 0
         env.commands[:,2] = 0
-        env.commands[:,3] = 0.25
-        env.commands[:,4] = 0.4 # height command
+        env.commands[:,3] = 0.8
+        env.commands[:,4] = 0.45 # height command
         actions = policy.act_teacher(obs)
         # actions = torch.clamp(actions,-1.2,1.2)
 

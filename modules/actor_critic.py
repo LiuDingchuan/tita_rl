@@ -391,11 +391,11 @@ class ActorCriticRMA(nn.Module):
                                                activation=activation)
 
         # Value function
-        critic_layers = mlp_factory(activation,num_prop+self.scan_encoder_output_dim+priv_encoder_output_dim+32,1,critic_hidden_dims,last_act=False)
+        critic_layers = mlp_factory(activation, num_prop+self.scan_encoder_output_dim + priv_encoder_output_dim + 32, 1, critic_hidden_dims, last_act=False)
         self.critic = nn.Sequential(*critic_layers)
 
         # cost function
-        cost_layers = mlp_factory(activation,num_prop+self.scan_encoder_output_dim+priv_encoder_output_dim+32,cost_dims,critic_hidden_dims,last_act=False)
+        cost_layers = mlp_factory(activation, num_prop + self.scan_encoder_output_dim + priv_encoder_output_dim + 32,cost_dims,critic_hidden_dims,last_act=False)
         cost_layers.append(nn.Softplus())
         self.cost = nn.Sequential(*cost_layers)
 
@@ -560,7 +560,7 @@ class ActorCriticBarlowTwins(nn.Module):
         self.kwargs = kwargs
         priv_encoder_dims= kwargs['priv_encoder_dims']
         cost_dims = kwargs['num_costs']
-        activation = get_activation(activation)
+        activation = get_activation(activation) #激活函数
         self.num_prop = num_prop
         self.num_scan = num_scan
         self.num_hist = num_hist
@@ -619,11 +619,11 @@ class ActorCriticBarlowTwins(nn.Module):
         print(self.actor_teacher_backbone)
 
         # Value function
-        critic_layers = mlp_factory(activation,num_prop+self.scan_encoder_output_dim+priv_encoder_output_dim+32,1,critic_hidden_dims,last_act=False)
+        critic_layers = mlp_factory(activation, num_prop + self.scan_encoder_output_dim + priv_encoder_output_dim + 32, 1, critic_hidden_dims, last_act=False)
         self.critic = nn.Sequential(*critic_layers)
 
         # cost function
-        cost_layers = mlp_factory(activation,num_prop+self.scan_encoder_output_dim+priv_encoder_output_dim+32,cost_dims,critic_hidden_dims,last_act=False)
+        cost_layers = mlp_factory(activation, num_prop + self.scan_encoder_output_dim + priv_encoder_output_dim + 32, cost_dims, critic_hidden_dims, last_act=False)
         cost_layers.append(nn.Softplus())
         self.cost = nn.Sequential(*cost_layers)
 
@@ -681,7 +681,7 @@ class ActorCriticBarlowTwins(nn.Module):
     def act_teacher(self,obs, **kwargs):
         obs_prop = obs[:, :self.num_prop] #本体属性观测
         obs_hist = obs[:, -self.num_hist*self.num_prop:].view(-1, self.num_hist, self.num_prop) #历史观测序列
-        mean = self.actor_teacher_backbone(obs_prop, obs_hist)
+        mean = self.actor_teacher_backbone(obs_prop, obs_hist) #前向传播
         return mean
         
     def evaluate(self, obs, **kwargs):

@@ -53,8 +53,8 @@ class LeggedRobotCfg(BaseConfig):
         vertical_scale = 0.005  # [m]
         border_size = 25  # [m]
         curriculum = True
-        static_friction = 0.5
-        dynamic_friction = 0.5
+        static_friction = 1.0
+        dynamic_friction = 1.0
         restitution = 0.
         # rough terrain only:
         measure_heights = True
