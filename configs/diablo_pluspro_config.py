@@ -90,7 +90,7 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         use_random_height = False
 
         class ranges:
-            lin_vel_x = [-1.0, 1.0]  # min max [m/s]
+            lin_vel_x = [0.0, 0.5]  # min max [m/s]
             lin_vel_y = [0.0, 0.0]  # min max [m/s]
             ang_vel_yaw = [-1, 1]  # min max [rad/s]
             heading = [-1.57, 1.57]
@@ -112,7 +112,7 @@ class DiabloPlusProCfg(LeggedRobotCfg):
 
     class rewards(LeggedRobotCfg.rewards):
         soft_dof_pos_limit = 0.9
-        base_height_target = 0.4
+        base_height_target = 0.45
         foot_x_position_sigma = 0.01 #越小对x的约束越强
 
         class scales(LeggedRobotCfg.rewards.scales):
@@ -122,16 +122,16 @@ class DiabloPlusProCfg(LeggedRobotCfg):
             tracking_lin_vel = 2.0
             tracking_ang_vel = 2.0
             lin_vel_z = -0.0
-            ang_vel_xy = -0.1
+            ang_vel_xy = -0.2
             dof_vel = 0.0
             dof_acc = -2.5e-7
-            base_height = -1.0 #为奖励时(正数)，似乎越小效果越好
+            base_height = -2.0 #为奖励时(正数)，似乎越小跟踪height的效果越好
             feet_air_time = 0.0
             collision = -1.0
             stumble = -10.0
             action_rate = -0.01 #上楼梯时，这个增大为0.02,效果不好
-            action_smoothness = -0.001
-            stand_still = -0.5 #要给负值才能有起到使其在0输入时关节少动的效果
+            action_smoothness = -0.005
+            stand_still = -0.4 #要给负值才能有起到使其在0输入时关节少动的效果
             # foot_clearance = -0.0
             orientation = -10.0
             stand_nice = -0.2
@@ -278,6 +278,8 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         mesh_type = "trimesh"  # "heightfield" # none, plane, heightfield or trimesh
         measure_heights = True
         include_act_obs_pair_buf = False  # 是否包含动作观察对缓冲区
+        static_friction = 0.7
+        dynamic_friction = 0.7
         terrain_proportions = [0.1, 0.2, 0.35, 0.35, 0.0]
         # terrain_proportions = [0.0, 0.0, 1.0, 0.0, 0.0]
 
@@ -313,7 +315,7 @@ class DiabloPlusProCfgPPO(LeggedRobotCfgPPO):
         imi_flag = True
 
     class runner(LeggedRobotCfgPPO.runner):
-        run_name = "recover_stair_height_imi"
+        run_name = "stair_high_height"
         experiment_name = "diablo_pluspro"
         policy_class_name = "ActorCriticBarlowTwins"
         runner_class_name = "OnConstraintPolicyRunner"
