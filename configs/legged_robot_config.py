@@ -167,7 +167,7 @@ class LeggedRobotCfg(BaseConfig):
             tracking_lin_vel = 1.0
             tracking_ang_vel = 0.5
             lin_vel_z = -2.0
-            ang_vel_xy = -0.05
+            # ang_vel_xy = -0.05
             orientation = -0.
             torques = -0.00001
             dof_vel = -0.
@@ -202,12 +202,12 @@ class LeggedRobotCfg(BaseConfig):
         add_noise = True
         noise_level = 1.0  # scales other values
         class noise_scales:
-            dof_pos = 0.01
+            dof_pos = 0.01 #TODO 0.1
             dof_vel = 1.5
             lin_vel = 0.1
-            ang_vel = 0.2
-            gravity = 0.05
-            height_measurements = 0.02
+            ang_vel = 0.2 
+            gravity = 0.05 
+            height_measurements = 0.02 #TODO 0.1
             contact_states = 0.05
 
     # viewer camera:
@@ -217,7 +217,7 @@ class LeggedRobotCfg(BaseConfig):
         lookat = [11., 5, 3.]  # [m]
 
     class sim:
-        dt = 0.002 #500 Hz
+        dt = 0.002 #400 Hz
         substeps = 1
         gravity = [0., 0., -9.81]  # [m/s^2]
         up_axis = 1  # 0 is y, 1 is z

@@ -664,7 +664,7 @@ class ActorCriticBarlowTwins(nn.Module):
         return self.distribution.stddev
     
     @property
-    def entropy(self):
+    def entropy(self): #熵
         return self.distribution.entropy().sum(dim=-1)
 
     def update_distribution(self, obs):

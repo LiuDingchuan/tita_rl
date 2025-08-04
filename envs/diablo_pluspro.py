@@ -3,7 +3,7 @@ Description:
 Version: 2.0
 Author: Dandelion
 Date: 2025-03-13 18:16:15
-LastEditTime: 2025-07-25 21:39:10
+LastEditTime: 2025-08-04 02:18:02
 FilePath: /tita_rl/envs/diablo_pluspro.py
 '''
 import numpy as np
@@ -1388,7 +1388,7 @@ class DiabloPlusPro(BaseTask):
         else:
             points = quat_apply_yaw(self.base_quat.repeat(1, self.num_height_points), self.height_points) + (self.root_states[:, :3]).unsqueeze(1)
 
-        points += self.terrain.cfg.border_size
+        points += self.terrain.cfg.border_size #保证所有点都在高度场范围内
         points = (points/self.terrain.cfg.horizontal_scale).long()
         px = points[:, :, 0].view(-1)
         py = points[:, :, 1].view(-1)
@@ -1463,17 +1463,21 @@ class DiabloPlusPro(BaseTask):
         """
         # If the tracking reward is above 80% of the maximum, increase the range of commands
         if torch.mean(self.episode_sums["tracking_lin_vel"][env_ids]) / self.max_episode_length > 0.8 * self.reward_scales["tracking_lin_vel"]:
-            self.command_ranges["lin_vel_x"][0] = np.clip(self.command_ranges["lin_vel_x"][0] - 0.25, -self.cfg.commands.max_curriculum, 0.)
-            self.command_ranges["lin_vel_x"][1] = np.clip(self.command_ranges["lin_vel_x"][1] + 0.25, 0., self.cfg.commands.max_curriculum)
+            self.command_ranges["lin_vel_x"][0] = np.clip(self.command_ranges["lin_vel_x"][0] - 0.1, -self.cfg.commands.max_curriculum, 0.)
+            self.command_ranges["lin_vel_x"][1] = np.clip(self.command_ranges["lin_vel_x"][1] + 0.1, 0., self.cfg.commands.max_curriculum)
 
     #------------ reward functions----------------
     def _reward_lin_vel_z(self):
         # Penalize z axis base linear velocity
         return torch.square(self.base_lin_vel[:, 2])
     
-    def _reward_ang_vel_xy(self):
+    def _reward_ang_vel_x(self):
         # Penalize xy axes base angular velocity
-        return torch.sum(torch.square(self.base_ang_vel[:, :2]), dim=1)
+        return torch.square(self.base_ang_vel[:, 0])
+    
+    def _reward_ang_vel_y(self):
+        # Penalize z axis base angular velocity
+        return torch.square(self.base_ang_vel[:, 1])
     
     def _reward_orientation(self):
         # Penalize non flat base orientation
@@ -1579,7 +1583,7 @@ class DiabloPlusPro(BaseTask):
         term_pos = torch.sum(torch.square(self.dof_pos[:, [0,1,3,4]] - self.default_dof_pos[:, [0,1,3,4]]), dim=1)
         term_x = 5 * torch.square(self.base_lin_vel[:, 0])
         # term_y = torch.square(self.base_lin_vel[:, 1])
-        return (term_x + term_pos) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
+        return (term_x + term_pos) * (torch.norm(self.commands[:, :2], dim=1) < self.cfg.rewards.stand_still_command_range)
     
     def _reward_feet_contact_forces(self):
         # penalize high contact forces
@@ -1665,7 +1669,7 @@ class DiabloPlusPro(BaseTask):
     def _reward_stand_nice(self):
         velocity_penalty = torch.sum(torch.abs(self.dof_vel[:, [0, 1, 3, 4]]), dim=1)
         base_tilt_penalty = (1 - self.projected_gravity[:, 2])
-        is_static = (torch.norm(self.commands[:, :2], dim=1) < 0.1)
+        is_static = (torch.norm(self.commands[:, :2], dim=1) < self.cfg.rewards.stand_still_command_range)
         return velocity_penalty * base_tilt_penalty * is_static    
     
     #计算每只脚在机器人body系下的x方向位置误差（希望都接近于0)，惩罚脚偏离原点x轴距离
