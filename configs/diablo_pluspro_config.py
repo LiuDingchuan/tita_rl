@@ -125,7 +125,7 @@ class DiabloPlusProCfg(LeggedRobotCfg):
     
     class rewards(LeggedRobotCfg.rewards):
         soft_dof_pos_limit = 0.9
-        base_height_target = 0.45
+        base_height_target = 0.42
         foot_x_position_sigma = 0.01 #越小对x的约束越强
         tracking_sigma = 0.25 #越小对误差的约束越强
         stand_still_command_range = 0.2
@@ -134,30 +134,31 @@ class DiabloPlusProCfg(LeggedRobotCfg):
             torques = 0.0
             powers = -2e-5
             termination = -100
-            tracking_lin_vel = 2.0
-            tracking_ang_vel = 2.0
+            tracking_lin_vel = 5.0
+            tracking_ang_vel = 2.5
             lin_vel_z = -0.0
-            ang_vel_x = -0.15
-            ang_vel_y = -0.15
+            ang_vel_x = -0.1
+            ang_vel_y = -0.05
             dof_vel = 0.0
             dof_acc = -2.5e-7
-            base_height = -2.0 #为奖励时(正数)，似乎越小跟踪height的效果越好
+            base_height = 2.0 #为奖励时(正数)，似乎越小跟踪height的效果越好
             feet_air_time = 0.0
-            collision = -1.0
-            stumble = -10.0
+            collision = -10.0
+            stumble = -100.0
             action_rate = -0.01 #上楼梯时，这个增大为0.02,效果不好
             action_smoothness = -0.005
-            stand_still = -0.4 #要给负值才能有起到使其在0输入时关节少动的效果
+            stand_still = -0.5 #要给负值才能有起到使其在0输入时关节少动的效果
             # foot_clearance = -0.0
-            orientation = -12.0
+            orientation = -20.0
             stand_nice = -0.2
-            foot_relative_x = -0.1  # 惩罚脚偏离原点x轴距离
-            same_foot_x_position = 0.08
+            # foot_relative_x = -0.1  # 惩罚脚偏离原点x轴距离
+            com_feet = -0.4
+            same_foot_x_position = 0.05
             inclination = 0.0
 
     class domain_rand(LeggedRobotCfg.domain_rand):
         randomize_friction = True
-        friction_range = [0.5, 1.5]
+        friction_range = [0.2, 1.0]
         randomize_restitution = True
         restitution_range = [0.0, 1.0] #恢复系数
         randomize_base_mass = True
@@ -203,20 +204,20 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         rand_interval = 10  # Randomization interval in seconds
 
         randomize_joint_friction = True
-        randomize_joint_friction_each_joint = False       
-        default_joint_friction = [0.00, 0.00, 0.00, 0.00, 0.00, 0.00] #量纲好像不是Nm，
+        randomize_joint_friction_each_joint = True       
+        default_joint_friction = [0.002, 0.003, 0.00, 0.002, 0.003, 0.00] #量纲好像不是Nm，
         joint_friction_range = [0.8, 1.2]
-        joint_1_friction_range = [0.9, 1.1] #系数
-        joint_2_friction_range = [0.9, 1.1]
-        joint_3_friction_range = [0.9, 1.1]
-        joint_4_friction_range = [0.9, 1.1]
-        joint_5_friction_range = [0.9, 1.1]
-        joint_6_friction_range = [0.9, 1.1]
+        joint_1_friction_range = [0.7, 1.3] #系数
+        joint_2_friction_range = [0.8, 1.2]
+        joint_3_friction_range = [0.8, 1.2]
+        joint_4_friction_range = [0.7, 1.3]
+        joint_5_friction_range = [0.8, 1.2]
+        joint_6_friction_range = [0.8, 1.2]
 
         randomize_joint_damping = True
         randomize_joint_damping_each_joint = True
-        default_joint_damping = [0.5, 0.5, 0.00,\
-                                 0.5, 0.5, 0.00,]
+        default_joint_damping = [0.0, 0.0, 0.00,\
+                                 0.0, 0.0, 0.00,]
         joint_damping_range = [0.8, 1.2]
         joint_1_damping_range = [0.8, 1.2] #系数
         joint_2_damping_range = [0.8, 1.2]
@@ -228,11 +229,11 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         randomize_joint_armature = True   
         randomize_joint_armature_each_joint = True
         joint_armature_range = [0.03, 0.08]    
-        joint_1_armature_range = [0.03, 0.08]
-        joint_2_armature_range = [0.03, 0.08]
+        joint_1_armature_range = [0.03, 0.06]
+        joint_2_armature_range = [0.03, 0.06]
         joint_3_armature_range = [0.003, 0.01]
-        joint_4_armature_range = [0.03, 0.08]
-        joint_5_armature_range = [0.03, 0.08]
+        joint_4_armature_range = [0.03, 0.06]
+        joint_5_armature_range = [0.03, 0.06]
         joint_6_armature_range = [0.003, 0.01]
 
         randomize_coulomb_friction = True
@@ -294,10 +295,10 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         mesh_type = "trimesh"  # "heightfield" # none, plane, heightfield or trimesh
         measure_heights = True
         include_act_obs_pair_buf = False  # 是否包含动作观察对缓冲区
-        static_friction = 0.7
-        dynamic_friction = 0.7
-        terrain_proportions = [0.1, 0.2, 0.35, 0.25, 0.1]
-        # terrain_proportions = [0.0, 0.0, 1.0, 0.0, 0.0]
+        static_friction = 0.2
+        dynamic_friction = 0.2
+        # terrain_proportions = [0.1, 0.2, 0.35, 0.35, 0.0]
+        terrain_proportions = [0.0, 0.0, 1.0, 0.0, 0.0]
 
 
 class DiabloPlusProCfgPPO(LeggedRobotCfgPPO):
@@ -328,15 +329,15 @@ class DiabloPlusProCfgPPO(LeggedRobotCfgPPO):
         num_costs = 7
 
         teacher_act = True
-        imi_flag = False
+        imi_flag = True
 
     class runner(LeggedRobotCfgPPO.runner):
-        run_name = "randomize_damping_soft_vel"
+        run_name = "less_terrain_friction"  # name of the run
         experiment_name = "diablo_pluspro"
         policy_class_name = "ActorCriticBarlowTwins"
         runner_class_name = "OnConstraintPolicyRunner"
         algorithm_class_name = "NP3O"
-        max_iterations = 5000
+        max_iterations = 6000
         num_steps_per_env = 24
         resume = False
         resume_path = ""

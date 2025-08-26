@@ -3,7 +3,7 @@ Description:
 Version: 2.0
 Author: Dandelion
 Date: 2025-03-13 18:16:15
-LastEditTime: 2025-08-04 02:18:02
+LastEditTime: 2025-08-23 16:50:34
 FilePath: /tita_rl/envs/diablo_pluspro.py
 '''
 import numpy as np
@@ -324,11 +324,14 @@ class DiabloPlusPro(BaseTask):
             pos = self.env_origins[i].clone()
             pos[:2] += torch_rand_float(-1., 1., (2,1), device=self.device).squeeze(1)
             start_pose.p = gymapi.Vec3(*pos)
+            #set friction of rigid body
             rigid_shape_props = self._process_rigid_shape_props(rigid_shape_props_asset, i)
             self.gym.set_asset_rigid_shape_properties(robot_asset, rigid_shape_props)
+            #set actor
             actor_handle = self.gym.create_actor(env_handle, robot_asset, start_pose, self.cfg.asset.name, i, self.cfg.asset.self_collisions, 0)
             dof_props = self._process_dof_props(dof_props_asset, i)
             self.gym.set_actor_dof_properties(env_handle, actor_handle, dof_props)
+            #set mass of rigid body
             body_props = self.gym.get_actor_rigid_body_properties(env_handle, actor_handle)
             body_props, mass_params = self._process_rigid_body_props(body_props, i)
             self.gym.set_actor_rigid_body_properties(env_handle, actor_handle, body_props, recomputeInertia=True)
@@ -1575,7 +1578,7 @@ class DiabloPlusPro(BaseTask):
     def _reward_stumble(self):
         # Penalize feet hitting vertical surfaces
         return torch.any(torch.norm(self.contact_forces[:, self.feet_indices, :2], dim=2) >\
-             5 *torch.abs(self.contact_forces[:, self.feet_indices, 2]), dim=1)
+             2 *torch.abs(self.contact_forces[:, self.feet_indices, 2]), dim=1)
         
     def _reward_stand_still(self):
         # Penalize motion at zero commands
@@ -1700,7 +1703,14 @@ class DiabloPlusPro(BaseTask):
             -(foot_x_position_err**2) / self.cfg.rewards.foot_x_position_sigma
         )
         return reward
-    
+
+    def _reward_com_feet(self):
+        com = self.root_states[:, 0:2]
+        feet_com = (self.foot_positions[:, 0, 0:2] + self.foot_positions[:, 1, 0:2])/2
+        err = torch.sum(torch.square(com - feet_com), dim=1)
+
+        return torch.exp(-err/0.25)    
+        
     def _reward_inclination(self):
         # 惩罚pitch和roll方向的角速度，防止侧倾
         rp_error = torch.norm(
@@ -1753,7 +1763,7 @@ class DiabloPlusPro(BaseTask):
     def _cost_stumble(self):
         # Penalize feet hitting vertical surfaces
         return 1.*(torch.sum(1.*(torch.norm(self.contact_forces[:, self.feet_indices, :2], dim=2) >\
-             5 *torch.abs(self.contact_forces[:, self.feet_indices, 2])), dim=1) > 0.0)
+             2 *torch.abs(self.contact_forces[:, self.feet_indices, 2])), dim=1) > 0.0)
     
     def _cost_stumble_up(self):
         # Penalize feet hitting vertical surfaces
