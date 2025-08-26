@@ -5,7 +5,7 @@ import subprocess
 import isaacgym
 from envs import *
 from utils import get_args, task_registry, get_load_path, class_to_dict
-from rsl_rl.modules import ActorCritic, ActorCriticRecurrent
+from modules import ActorCritic, ActorCriticRecurrent
 
 import numpy as np
 import torch
@@ -52,11 +52,11 @@ def export_policy_as_onnx(args):
     )
     engine_path =  os.path.join(ROOT_DIR, 'logs', train_cfg.runner.experiment_name, 'exported', 'policies/policy.engine')
 
-    # if os.path.exists(engine_path):
-    #     print(f"Engine file already exists: {engine_path}")
-    # else:   
-    print("Exported policy as onnx script to: ", engine_path)
-    convert_onnx_to_engine(engine_path)
+    if os.path.exists(engine_path):
+        print(f"Engine file already exists: {engine_path}")
+    else:   
+        print("Exported policy as onnx script to: ", engine_path)
+        convert_onnx_to_engine(engine_path)
 
 def convert_onnx_to_engine(engine_path):
     onnx_path = engine_path.replace(".engine", ".onnx")
