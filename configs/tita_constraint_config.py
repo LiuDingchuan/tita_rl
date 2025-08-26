@@ -30,7 +30,7 @@
 
 from configs.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
 from global_config import ROOT_DIR
-class TitaConstraintRoughCfg( LeggedRobotCfg ):
+class TitaConstraintHimRoughCfg( LeggedRobotCfg ):
     class env(LeggedRobotCfg.env):
         num_envs = 4096
 
@@ -200,7 +200,7 @@ class TitaConstraintRoughCfg( LeggedRobotCfg ):
         measure_heights = True
         include_act_obs_pair_buf = False
 
-class TitaConstraintRoughCfgPPO( LeggedRobotCfgPPO ):
+class TitaConstraintHimRoughCfgPPO( LeggedRobotCfgPPO ):
     class algorithm( LeggedRobotCfgPPO.algorithm ):
         entropy_coef = 0.01
         learning_rate = 1.e-3

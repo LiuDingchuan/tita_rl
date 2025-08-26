@@ -16,14 +16,13 @@ from global_config import ROOT_DIR
 from PIL import Image as im
 
 
+# from configs.tita_flat_config import TitaFlatCfg, TitaFlatCfgPPO
+# from configs.tita_rough_config import TitaRoughCfg, TitaRoughCfgPPO
 
-from configs.tita_flat_config import TitaFlatCfg, TitaFlatCfgPPO
-from configs.tita_rough_config import TitaRoughCfg, TitaRoughCfgPPO
-
-from envs.no_constrains_legged_robot import Tita
-from envs import *
-from export_policy_as_onnx  import *
-import argparse
+# from envs.no_constrains_legged_robot import Tita
+# from envs import *
+# from export_policy_as_onnx  import *
+# import argparse
 
 
 

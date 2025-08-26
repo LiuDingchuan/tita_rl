@@ -5,10 +5,10 @@ from configs.tita_constraint_config import (
     TitaConstraintHimRoughCfg,
     TitaConstraintHimRoughCfgPPO,
 )
-from configs.titati_constaint_config import (
-    TitatiConstraintHimRoughCfg,
-    TitatiConstraintHimRoughCfgPPO,
-)
+# from configs.titati_constaint_config import (
+#     TitatiConstraintHimRoughCfg,
+#     TitatiConstraintHimRoughCfgPPO,
+# )
 from configs.diablo_pluspro_config import DiabloPlusProCfg, DiabloPlusProCfgPPO
 
 from global_config import ROOT_DIR, ENVS_DIR
