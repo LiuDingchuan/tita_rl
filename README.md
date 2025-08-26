@@ -63,7 +63,7 @@ python train.py --task=diablo_pluspro --headless
 
 训练好的文件在tita_rl/logs下，例如tita_rl/logs/diablo_pluspro/Jul23_18-32-24_recover_stair_height_5.8, 会根据训练时的当前日期-时间排列，如果不load_run直接simple_play的话，会自动调用最近一次的log的最后一个checkpoint；当然更推荐使用--load_run来指定加载pt文件的目录
 ```bash
-python simple_play.py --task=diablo_pluspro --load_run=/home/hilabldc/tita_rl/logs/diablo_pluspro/Jul23_18-32-24_recover_stair_height_5.8 --checkpoint
+python simple_play.py --task=diablo_pluspro --load_run=/home/hilabldc/tita_rl/logs/diablo_pluspro/Jul23_18-32-24_recover_stair_height_5.8 --checkpoint=6000
 ```
 
 ### ONNX到TensorRT推理引擎转换
