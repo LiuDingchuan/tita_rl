@@ -14,7 +14,7 @@ class LeggedRobotCfg(BaseConfig):
         num_actions = 8
         env_spacing = 3.  # not used with heightfields/trimeshes 
         send_timeouts = True # send time out information to the algorithm
-        episode_length_s = 20 # episode length in seconds
+        episode_length_s = 20 # episode length in seconds 最长可以进行的episode_lengt，超过会reset
 
         history_encoding = True
 
@@ -108,6 +108,7 @@ class LeggedRobotCfg(BaseConfig):
         damping = {'joint_a': 1.0, 'joint_b': 1.5}  # [N*m*s/rad]
         # action scale: target angle = actionScale * action + defaultAngle
         action_scale = 0.5
+        action_scale_vel = 10
         # decimation: Number of control action updates @ sim DT per policy DT
         decimation = 4
 
@@ -125,7 +126,7 @@ class LeggedRobotCfg(BaseConfig):
         fix_base_link = False  # fixe the base of the robot
         default_dof_drive_mode = 3  # see GymDofDriveModeFlags (0 is none, 1 is pos tgt, 2 is vel tgt, 3 effort)
         self_collisions = 0  # 1 to disable, 0 to enable...bitwise filter
-        replace_cylinder_with_capsule = False  # replace collision cylinders with capsules, leads to faster/more stable simulation
+        replace_cylinder_with_capsule = True  # replace collision cylinders with capsules, leads to faster/more stable simulation
         flip_visual_attachments = False  # Some .obj meshes must be flipped from y-up to z-up
 
         density = 0.001
@@ -166,7 +167,7 @@ class LeggedRobotCfg(BaseConfig):
             tracking_lin_vel = 1.0
             tracking_ang_vel = 0.5
             lin_vel_z = -2.0
-            ang_vel_xy = -0.05
+            # ang_vel_xy = -0.05
             orientation = -0.
             torques = -0.00001
             dof_vel = -0.
@@ -201,12 +202,12 @@ class LeggedRobotCfg(BaseConfig):
         add_noise = True
         noise_level = 1.0  # scales other values
         class noise_scales:
-            dof_pos = 0.01
+            dof_pos = 0.01 #TODO 0.1
             dof_vel = 1.5
             lin_vel = 0.1
-            ang_vel = 0.2
-            gravity = 0.05
-            height_measurements = 0.02
+            ang_vel = 0.2 
+            gravity = 0.05 
+            height_measurements = 0.02 #TODO 0.1
             contact_states = 0.05
 
     # viewer camera:
@@ -216,7 +217,7 @@ class LeggedRobotCfg(BaseConfig):
         lookat = [11., 5, 3.]  # [m]
 
     class sim:
-        dt = 0.0025
+        dt = 0.002 #500 Hz
         substeps = 1
         gravity = [0., 0., -9.81]  # [m/s^2]
         up_axis = 1  # 0 is y, 1 is z
@@ -294,4 +295,6 @@ class LeggedRobotCfgPPO(BaseConfig):
         # load and resume
         resume = False
         resume_path = None # updated from load_run and chkpt
+        load_run = -1 # -1 = last run
+        checkpoint = -1 # -1 = last saved model
     

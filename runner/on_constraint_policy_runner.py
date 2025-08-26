@@ -40,12 +40,11 @@ class OnConstraintPolicyRunner:
                                                       self.env.cfg.env.history_len,
                                                       self.env.num_actions,
                                                       **self.policy_cfg)
-        if self.cfg['resume']:
-            model_dict = torch.load(os.path.join(ROOT_DIR, self.cfg['resume_path']))
-            actor_critic.load_state_dict(model_dict['model_state_dict'])
+        # if self.cfg['resume']:
+        #     model_dict = torch.load(os.path.join(ROOT_DIR, self.cfg['resume_path']))
+        #     actor_critic.load_state_dict(model_dict['model_state_dict'])
         
-        actor_critic.to(self.device)
-        
+        # actor_critic.to(self.device)      
 
         # Depth encoder
         self.if_depth = self.depth_encoder_cfg["if_depth"]
@@ -132,20 +131,22 @@ class OnConstraintPolicyRunner:
             # # else:
             # #     print("lag is off")
             if self.alg.actor_critic.imi_flag and self.cfg['resume']: 
-                step_size = 1/int(tot_iter/2)
-                imi_weight = max(0,1 - it * step_size)
+                # step_size = 1/int(tot_iter/2)
+                step_size = 1 / num_learning_iterations
+                imi_weight = max(0, 1 - (it-self.current_learning_iteration) * step_size)
+                print("imi_weight:",imi_weight)
                 self.alg.set_imi_weight(imi_weight)
             
             start = time.time()
             # Rollout
-            with torch.inference_mode():
+            with torch.inference_mode(): #提高推理效率
                 for i in range(self.num_steps_per_env):
                    
                     actions = self.alg.act(obs, critic_obs, infos)
-                    obs, privileged_obs, rewards,costs,dones, infos = self.env.step(actions)  # obs has changed to next_obs !! if done obs has been reset
+                    obs, privileged_obs, rewards, costs,dones, infos = self.env.step(actions)  # obs has changed to next_obs !! if done obs has been reset
                     critic_obs = privileged_obs if privileged_obs is not None else obs
                     obs, critic_obs,rewards,costs,dones = obs.to(self.device), critic_obs.to(self.device), rewards.to(self.device),costs.to(self.device),dones.to(self.device)
-                    self.alg.process_env_step(rewards,costs,dones, infos)
+                    self.alg.process_env_step(rewards, costs, dones, infos)
 
                     if self.log_dir is not None:
                         # Book keeping
@@ -155,7 +156,7 @@ class OnConstraintPolicyRunner:
                         cur_episode_length += 1
                         new_ids = (dones > 0).nonzero(as_tuple=False)
                         rewbuffer.extend(cur_reward_sum[new_ids][:, 0].cpu().numpy().tolist())
-                        lenbuffer.extend(cur_episode_length[new_ids][:, 0].cpu().numpy().tolist())
+                        lenbuffer.extend(cur_episode_length[new_ids][:, 0].cpu().numpy().tolist()) #记录最新完成的episode的奖励与长度
                         cur_reward_sum[new_ids] = 0
                         cur_episode_length[new_ids] = 0
 
@@ -277,7 +278,7 @@ class OnConstraintPolicyRunner:
         print("Loading model from {}...".format(path))
         loaded_dict = torch.load(path, map_location=self.device)
         self.alg.actor_critic.load_state_dict(loaded_dict['model_state_dict'])
-        self.alg.estimator.load_state_dict(loaded_dict['estimator_state_dict'])
+        # self.alg.estimator.load_state_dict(loaded_dict['estimator_state_dict'])
         if self.if_depth:
             if 'depth_encoder_state_dict' not in loaded_dict:
                 warnings.warn("'depth_encoder_state_dict' key does not exist, not loading depth encoder...")
@@ -292,7 +293,7 @@ class OnConstraintPolicyRunner:
                 self.alg.depth_actor.load_state_dict(self.alg.actor_critic.actor.state_dict())
         if load_optimizer:
             self.alg.optimizer.load_state_dict(loaded_dict['optimizer_state_dict'])
-        # self.current_learning_iteration = loaded_dict['iter']
+        self.current_learning_iteration = loaded_dict['iter']
         print("*" * 80)
         return loaded_dict['infos']
 

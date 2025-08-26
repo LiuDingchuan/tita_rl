@@ -363,7 +363,7 @@ class ActorCriticRMA(nn.Module):
             print("no imitation")
 
         if len(priv_encoder_dims) > 0:
-            priv_encoder_layers = mlp_factory(activation,num_priv_latent,None,priv_encoder_dims,last_act=True)
+            priv_encoder_layers = mlp_factory(activation, num_priv_latent, None,priv_encoder_dims,last_act=True)
             self.priv_encoder = nn.Sequential(*priv_encoder_layers)
             priv_encoder_output_dim = priv_encoder_dims[-1]
         else:
@@ -391,11 +391,11 @@ class ActorCriticRMA(nn.Module):
                                                activation=activation)
 
         # Value function
-        critic_layers = mlp_factory(activation,num_prop+self.scan_encoder_output_dim+priv_encoder_output_dim+32,1,critic_hidden_dims,last_act=False)
+        critic_layers = mlp_factory(activation, num_prop+self.scan_encoder_output_dim + priv_encoder_output_dim + 32, 1, critic_hidden_dims, last_act=False)
         self.critic = nn.Sequential(*critic_layers)
 
         # cost function
-        cost_layers = mlp_factory(activation,num_prop+self.scan_encoder_output_dim+priv_encoder_output_dim+32,cost_dims,critic_hidden_dims,last_act=False)
+        cost_layers = mlp_factory(activation, num_prop + self.scan_encoder_output_dim + priv_encoder_output_dim + 32,cost_dims,critic_hidden_dims,last_act=False)
         cost_layers.append(nn.Softplus())
         self.cost = nn.Sequential(*cost_layers)
 
@@ -438,14 +438,25 @@ class ActorCriticRMA(nn.Module):
     @property
     def entropy(self):
         return self.distribution.entropy().sum(dim=-1)
-
+    '''
+    description: 根据当前观测更新动作的概率分布
+    param {*} self
+    param {*} obs
+    return {*}
+    '''    
     def update_distribution(self, obs):
         if self.teacher_act:
             mean = self.act_teacher(obs)
         else:
             mean = self.act_student(obs)
-        self.distribution = Normal(mean, mean*0. + self.get_std())
-
+        self.distribution = Normal(mean, mean*0. + self.get_std()) #构造正态分布
+    '''
+    description: 策略网络的核心，根据当前观测obs来生成动作
+    param {*} self
+    param {*} obs
+    param {object} kwargs
+    return {*}
+    '''
     def act(self, obs,**kwargs):
         self.update_distribution(obs)
         return self.distribution.sample()
@@ -513,16 +524,22 @@ class ActorCriticRMA(nn.Module):
         return loss
     
     def imitation_mode(self):
-        self.actor_teacher_backbone.eval()
+        self.actor_teacher_backbone.eval() #eval切换到评估模式
         self.scan_encoder.eval()
         self.priv_encoder.eval()
     
     def save_torch_jit_policy(self,path,device):
-        print("ActorCriticRMA")
+        print("use_ActorCriticRMA")
         obs_demo_input = torch.randn(1,self.num_prop).to(device)
         hist_demo_input = torch.randn(1,self.num_hist,self.num_prop).to(device)
         model_jit = torch.jit.trace(self.actor_student_backbone,(obs_demo_input,hist_demo_input))
-        model_jit.save(path)
+        model_jit.save(f"{path}/sim2sim.pt")
+        torch_out = torch.onnx.export(self.actor_student_backbone,
+                    (obs_demo_input,hist_demo_input),
+                    f"{path}/sim2sim.onnx",
+                    verbose=True,
+                    export_params=True
+                    )
 
 class ActorCriticBarlowTwins(nn.Module):
     is_recurrent = False
@@ -543,7 +560,7 @@ class ActorCriticBarlowTwins(nn.Module):
         self.kwargs = kwargs
         priv_encoder_dims= kwargs['priv_encoder_dims']
         cost_dims = kwargs['num_costs']
-        activation = get_activation(activation)
+        activation = get_activation(activation) #激活函数
         self.num_prop = num_prop
         self.num_scan = num_scan
         self.num_hist = num_hist
@@ -602,11 +619,11 @@ class ActorCriticBarlowTwins(nn.Module):
         print(self.actor_teacher_backbone)
 
         # Value function
-        critic_layers = mlp_factory(activation,num_prop+self.scan_encoder_output_dim+priv_encoder_output_dim+32,1,critic_hidden_dims,last_act=False)
+        critic_layers = mlp_factory(activation, num_prop + self.scan_encoder_output_dim + priv_encoder_output_dim + 32, 1, critic_hidden_dims, last_act=False)
         self.critic = nn.Sequential(*critic_layers)
 
         # cost function
-        cost_layers = mlp_factory(activation,num_prop+self.scan_encoder_output_dim+priv_encoder_output_dim+32,cost_dims,critic_hidden_dims,last_act=False)
+        cost_layers = mlp_factory(activation, num_prop + self.scan_encoder_output_dim + priv_encoder_output_dim + 32, cost_dims, critic_hidden_dims, last_act=False)
         cost_layers.append(nn.Softplus())
         self.cost = nn.Sequential(*cost_layers)
 
@@ -647,7 +664,7 @@ class ActorCriticBarlowTwins(nn.Module):
         return self.distribution.stddev
     
     @property
-    def entropy(self):
+    def entropy(self): #熵
         return self.distribution.entropy().sum(dim=-1)
 
     def update_distribution(self, obs):
@@ -662,9 +679,9 @@ class ActorCriticBarlowTwins(nn.Module):
         return self.distribution.log_prob(actions).sum(dim=-1)
     
     def act_teacher(self,obs, **kwargs):
-        obs_prop = obs[:, :self.num_prop]
-        obs_hist = obs[:, -self.num_hist*self.num_prop:].view(-1, self.num_hist, self.num_prop)
-        mean = self.actor_teacher_backbone(obs_prop,obs_hist)
+        obs_prop = obs[:, :self.num_prop] #本体属性观测
+        obs_hist = obs[:, -self.num_hist*self.num_prop:].view(-1, self.num_hist, self.num_prop) #历史观测序列
+        mean = self.actor_teacher_backbone(obs_prop, obs_hist) #前向传播
         return mean
         
     def evaluate(self, obs, **kwargs):
@@ -713,14 +730,15 @@ class ActorCriticBarlowTwins(nn.Module):
         pass
     
     def save_torch_jit_policy(self,path,device):
+        print("use_ActorCriticBarlowTwins")
         obs_demo_input = torch.randn(1,self.num_prop).to(device)
         hist_demo_input = torch.randn(1,self.num_hist,self.num_prop).to(device)
         model_jit = torch.jit.trace(self.actor_teacher_backbone,(obs_demo_input,hist_demo_input))
-        model_jit.save(path)
+        model_jit.save(f"{path}/sim2sim.pt")
         torch_out = torch.onnx.export(self.actor_teacher_backbone,
-                            (obs_demo_input,hist_demo_input),
-                            "test.onnx",
-                            verbose=True,
-                            export_params=True
-                            )
+                    (obs_demo_input,hist_demo_input),
+                    f"{path}/sim2sim.onnx",
+                    verbose=True,
+                    export_params=True
+                    )
         

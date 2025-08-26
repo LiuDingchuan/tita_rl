@@ -14,7 +14,7 @@ from utils.terrain import Terrain
 from utils.math import quat_apply_yaw, wrap_to_pi, get_scale_shift
 from utils.helpers import class_to_dict
 import torchvision
-import cv2
+# import cv2
 
 # config
 from configs import LeggedRobotCfg
@@ -808,7 +808,7 @@ class LeggedRobot(BaseTask):
         # random ori
         # self.root_states[env_ids, 3:7] = random_quat(torch_rand_float(0, 1, (len(env_ids), 4), device=self.device))
 
-        # Use a fixed initial rotation
+        # 使用固定的初始旋转
         self.root_states[env_ids, 3:7] = self.base_init_state[3:7]        # random height
         
         self.root_states[env_ids, 2:3] += torch_rand_float(0, 0.2, (len(env_ids), 1), device=self.device)

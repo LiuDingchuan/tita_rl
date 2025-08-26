@@ -96,7 +96,7 @@ class NP3O:
         self.imi_weight = value
 
     def act(self, obs, critic_obs, info):
-        if self.actor_critic.is_recurrent:
+        if self.actor_critic.is_recurrent: #如果策略是循环或序列模型
             self.transition.hidden_states = self.actor_critic.get_hidden_states()
         self.transition.actions = self.actor_critic.act(obs).detach()
         self.transition.values = self.actor_critic.evaluate(critic_obs).detach()
@@ -143,7 +143,7 @@ class NP3O:
         # cost_advantages_batch : batch_size,num_type_costs
         ratio = torch.exp(actions_log_prob_batch - torch.squeeze(old_actions_log_prob_batch))
         # (batch_size,num_type_costs) * (batch_size,1) = (batch_size,num_type_costs)
-        surrogate = cost_advantages_batch*ratio.view(-1,1)
+        surrogate = cost_advantages_batch*ratio.view(-1,1) #通过view把ratio变成(batch_size,1)的形状，cost_advantages_batch : (batch_size,num_type_costs)，这样就可以做广播乘法
         surrogate_clipped = cost_advantages_batch*torch.clamp(ratio.view(-1,1), 1.0 - self.clip_param,1.0 + self.clip_param)
         # num_type_costs
         surrogate_loss = torch.max(surrogate, surrogate_clipped).mean(0)
@@ -199,8 +199,8 @@ class NP3O:
                 actions_log_prob_batch = self.actor_critic.get_actions_log_prob(actions_batch)
                 value_batch = self.actor_critic.evaluate(critic_obs_batch, masks=masks_batch, hidden_states=hid_states_batch[1])
                 cost_value_batch = self.actor_critic.evaluate_cost(critic_obs_batch, masks=masks_batch, hidden_states=hid_states_batch[1])
-                mu_batch = self.actor_critic.action_mean
-                sigma_batch = self.actor_critic.action_std
+                mu_batch = self.actor_critic.action_mean #当前策略的均值
+                sigma_batch = self.actor_critic.action_std #当前策略的标准差
                 entropy_batch = self.actor_critic.entropy
                 
                 # KL
@@ -249,10 +249,10 @@ class NP3O:
                     loss = main_loss + combine_value_loss + entropy_loss
 
                 # Gradient step
-                self.optimizer.zero_grad()
-                loss.backward()
-                nn.utils.clip_grad_norm_(self.actor_critic.parameters(), self.max_grad_norm)
-                self.optimizer.step()
+                self.optimizer.zero_grad() #梯度清零
+                loss.backward() #反向传播
+                nn.utils.clip_grad_norm_(self.actor_critic.parameters(), self.max_grad_norm) #梯度裁减
+                self.optimizer.step() #参数更新
 
                 mean_value_loss += value_loss.item()
                 mean_cost_value_loss += cost_value_loss.item()
