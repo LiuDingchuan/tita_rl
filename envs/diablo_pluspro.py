@@ -445,6 +445,7 @@ class DiabloPlusPro(BaseTask):
             if self.cfg.domain_rand.add_imu_lag:
                 self.gym.refresh_actor_root_state_tensor(self.sim)
                 self.base_quat = self.root_states[:, 3:7]
+                
                 self.base_ang_vel = quat_rotate_inverse(self.base_quat, self.root_states[:, 10:13])
                 # self.base_euler_xyz = get_euler_xyz_tensor(self.base_quat)
                 self.projected_gravity = quat_rotate_inverse(self.base_quat, self.gravity_vec)
@@ -515,15 +516,16 @@ class DiabloPlusPro(BaseTask):
         priv_latent = torch.cat((
             self.base_lin_vel * self.obs_scales.lin_vel,
             self.reindex_feet(self.contact_filt.float()-0.5),
-            self.randomized_lag_tensor,
-            #self.base_ang_vel  * self.obs_scales.ang_vel,
-            # self.base_lin_vel * self.obs_scales.lin_vel,
-            self.mass_params_tensor,
-            self.friction_coeffs_tensor,
-            self.restitution_coeffs_tensor,
-            self.motor_strength, 
-            self.kp_factor,
-            self.kd_factor), dim=-1) #privileged latent vector
+            # self.randomized_lag_tensor,
+            # #self.base_ang_vel  * self.obs_scales.ang_vel,
+            # # self.base_lin_vel * self.obs_scales.lin_vel,
+            # self.mass_params_tensor,
+            # self.friction_coeffs_tensor,
+            # self.restitution_coeffs_tensor,
+            # self.motor_strength, 
+            # self.kp_factor,
+            # self.kd_factor
+            ), dim=-1) #privileged latent vector
         
         # add perceptive inputs if not blind
         if self.cfg.terrain.measure_heights:

@@ -46,7 +46,7 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         num_actions = 6 # 智能体在环境中可采取的动作数量
 
         n_scan = 187
-        n_priv_latent = 30  # 3 + 2 + 1 + 4 + 1 + 1+ 6 + 6 + 6
+        n_priv_latent = 5  # 3 + 2 + 1 + 4 + 1 + 1+ 6 + 6 + 6
         n_proprio = 27  # 3+3+3+6+6+6
         history_len = 10
         num_observations = n_proprio + n_scan + history_len * n_proprio + n_priv_latent
@@ -69,14 +69,14 @@ class DiabloPlusProCfg(LeggedRobotCfg):
     class control(LeggedRobotCfg.control):
         # PD Drive parameters:
         control_type = "P"
-        stiffness = {"hip_joint": 40, "knee_joint": 40, "wheel": 10.0}  # [N*m/rad]
+        stiffness = {"hip_joint": 40, "knee_joint": 40, "wheel": 10}  # [N*m/rad]
         damping = {"hip_joint": 1.0, "knee_joint": 1.0, "wheel": 0.5}  # [N*m*s/rad]
         # action scale: target angle = actionScale * action + defaultAngle
-        action_scale = 0.5
+        action_scale = 0.25
         action_scale_vel = 10
         # decimation: Number of control action updates @ sim DT per policy DT
         decimation = 5 #100Hz
-        hip_scale_reduction = 0.5
+        hip_scale_reduction = 1.0
 
         use_filter = True
 
@@ -158,7 +158,7 @@ class DiabloPlusProCfg(LeggedRobotCfg):
 
     class domain_rand(LeggedRobotCfg.domain_rand):
         randomize_friction = True
-        friction_range = [0.2, 1.0]
+        friction_range = [0.2, 1.25]
         randomize_restitution = True
         restitution_range = [0.0, 1.0] #恢复系数
         randomize_base_mass = True
@@ -295,8 +295,8 @@ class DiabloPlusProCfg(LeggedRobotCfg):
         mesh_type = "trimesh"  # "heightfield" # none, plane, heightfield or trimesh
         measure_heights = True
         include_act_obs_pair_buf = False  # 是否包含动作观察对缓冲区
-        static_friction = 0.2
-        dynamic_friction = 0.2
+        static_friction = 0.6
+        dynamic_friction = 0.5
         # terrain_proportions = [0.1, 0.2, 0.35, 0.35, 0.0]
         terrain_proportions = [0.0, 0.0, 1.0, 0.0, 0.0]
 

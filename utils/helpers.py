@@ -170,8 +170,15 @@ def get_args():
     args = gymutil.parse_arguments(
         description="RL Policy",
         custom_parameters=custom_parameters)
-
-    # name allignment
+    if "cuda" in args.rl_device:
+        try:
+            # 从 "cuda:1" 中提取出 1
+            device_id = int(args.rl_device.split(":")[-1])
+            args.compute_device_id = device_id
+            args.graphics_device_id = device_id
+        except ValueError:
+            pass    # name allignment
+    # args.sim_device_id = args.compute_device_id
     args.sim_device_id = args.compute_device_id
     args.sim_device = args.sim_device_type
     if args.sim_device == 'cuda':
