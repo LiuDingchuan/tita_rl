@@ -142,6 +142,7 @@ class MlpBarlowTwinsActor(nn.Module):
     def __init__(self,
                  num_prop,
                  num_hist,
+                 num_priv,
                  obs_encoder_dims,
                  mlp_encoder_dims,
                  actor_dims,
@@ -151,11 +152,11 @@ class MlpBarlowTwinsActor(nn.Module):
         super(MlpBarlowTwinsActor,self).__init__()
         self.mlp_encoder = nn.Sequential(*mlp_layernorm_factory(activation=activation,
                                  input_dims=num_prop*num_hist,
-                                 out_dims=latent_dim+10,
+                                 out_dims=latent_dim+num_priv,
                                  hidden_dims=mlp_encoder_dims))
 
         self.actor = nn.Sequential(*mlp_factory(activation=activation,
-                                 input_dims=latent_dim + num_prop + 10,
+                                 input_dims=latent_dim + num_prop + num_priv,
                                  out_dims=num_actions,
                                  hidden_dims=actor_dims))
         
@@ -182,10 +183,11 @@ class MlpBarlowTwinsActor(nn.Module):
     
     def BarlowTwinsLoss(self,obs,obs_hist,priv,weight):
         b = obs.size()[0]
+        num_priv = priv.size()[1]
         obs_hist = obs_hist[:,0:,:].view(b,-1)
         predicted = self.mlp_encoder(obs_hist)
-        hist_latent = predicted[:,10:]
-        priv_latent = predicted[:,:10]
+        hist_latent = predicted[:,num_priv:]
+        priv_latent = predicted[:,:num_priv]
 
         obs_latent = self.obs_encoder(obs)
 
@@ -395,7 +397,7 @@ class ActorCriticRMA(nn.Module):
         self.critic = nn.Sequential(*critic_layers)
 
         # cost function
-        cost_layers = mlp_factory(activation, num_prop + self.scan_encoder_output_dim + priv_encoder_output_dim + 32,cost_dims,critic_hidden_dims,last_act=False)
+        cost_layers = mlp_factory(activation, num_prop + self.scan_encoder_output_dim + priv_encoder_output_dim + 32, cost_dims, critic_hidden_dims, last_act=False)
         cost_layers.append(nn.Softplus())
         self.cost = nn.Sequential(*cost_layers)
 
@@ -609,7 +611,8 @@ class ActorCriticBarlowTwins(nn.Module):
         #                               rnn_encoder_dims=[128])
         # #MlpBarlowTwinsActor
         self.actor_teacher_backbone = MlpBarlowTwinsActor(num_prop=num_prop,
-                                      num_hist=10,
+                                      num_hist=num_hist,
+                                      num_priv=num_priv_latent,
                                       num_actions=num_actions,
                                       actor_dims=[512,256,128],
                                       mlp_encoder_dims=[512,256,128],
@@ -721,7 +724,7 @@ class ActorCriticBarlowTwins(nn.Module):
     def imitation_learning_loss(self, obs):
         obs_prop = obs[:, :self.num_prop]
         obs_hist = obs[:, -self.num_hist*self.num_prop:].view(-1, self.num_hist, self.num_prop)
-        priv = obs[:, self.num_prop + self.num_scan: self.num_prop + self.num_scan + 10]
+        priv = obs[:, self.num_prop + self.num_scan: self.num_prop + self.num_scan + self.num_priv_latent]
 
         loss = self.actor_teacher_backbone.BarlowTwinsLoss(obs_prop,obs_hist,priv,5e-3)
         return loss

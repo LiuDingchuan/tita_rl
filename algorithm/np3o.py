@@ -229,7 +229,7 @@ class NP3O:
                 viol_loss = self.compute_viol(actions_log_prob_batch=actions_log_prob_batch,
                                 old_actions_log_prob_batch=old_actions_log_prob_batch,
                                 cost_advantages_batch=cost_advantages_batch,
-                                cost_volation_batch=cost_violation_batch)
+                                cost_violation_batch=cost_violation_batch)
                 # value function loss
                 value_loss = self.compute_value_loss(target_values_batch=target_values_batch,
                                         value_batch=value_batch,
