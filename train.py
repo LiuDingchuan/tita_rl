@@ -10,11 +10,13 @@ from configs.titati_constaint_config import (
     TitatiConstraintHimRoughCfgPPO,
 )
 from configs.diablo_pluspro_config import DiabloPlusProCfg, DiabloPlusProCfgPPO
+from configs.ddt_b1_config import DDTB1Cfg, DDTB1CfgPPO
 
 import isaacgym
 from utils.helpers import get_args
 from envs import LeggedRobot
 from envs import DiabloPlusPro
+from envs import DDTB1
 from utils.task_registry import task_registry
 
 
@@ -37,5 +39,9 @@ if __name__ == "__main__":
     task_registry.register(
         "diablo_pluspro", DiabloPlusPro, DiabloPlusProCfg(), DiabloPlusProCfgPPO()
     )
+    task_registry.register(
+        "ddt_b1", DDTB1, DDTB1Cfg(), DDTB1CfgPPO()
+    )
+    
     args = get_args()
     train(args)

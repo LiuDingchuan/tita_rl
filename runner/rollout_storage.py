@@ -367,7 +367,7 @@ class RolloutStorageWithCost:
             advantage = delta + next_is_not_terminal * gamma * lam * advantage
             self.cost_returns[step] = advantage + self.cost_values[step]
 
-        # cost volation
+        # cost violation
         #self.cost_violation =  (1-self.gamma)*(self.cost_returns - self.d_values.view(1,1,-1))
         #cancel d values or epsilon, treat them as 0
         ##self.cost_violation =  (1-gamma)*self.cost_returns

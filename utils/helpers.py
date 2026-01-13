@@ -246,3 +246,10 @@ def hard_phase_schedualer(max_iters,phase1_end):
     lag_schedual[phase1_end:] = True
     return act_schedual,imitation_schedual,lag_schedual
 
+
+def create_folder(directory_path):
+    if not os.path.exists(directory_path):
+        os.makedirs(directory_path)
+        print(f"Directory {directory_path} created.")
+    else:
+        print(f"Directory {directory_path} already exists.")
