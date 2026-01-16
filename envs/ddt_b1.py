@@ -471,7 +471,7 @@ class DDTB1(BaseTask):
         return self.obs_buf,self.privileged_obs_buf,self.rew_buf,self.cost_buf,self.reset_buf, self.extras
     
     def compute_observations(self):
-        self.dof_pos[:,[2, 5]]  = 0 
+        self.dof_pos[:,[3, 7]]  = 0 
 
         if self.cfg.domain_rand.add_dof_lag:
             self.lagged_dof_pos = self.dof_lag_buffer[torch.arange(self.num_envs), :, self.dof_lag_timestep.long()]
@@ -946,7 +946,7 @@ class DDTB1(BaseTask):
             raise NameError(f"Unknown controller type: {control_type}")
         # torques[:,[2, 5]] = self.kd_factor[:,[2, 5]] * self.d_gains[[2, 5]] * (actions[:,[2,5]] * self.cfg.control.action_scale_vel - self.dof_vel[:,[2, 5]])
         # torques[:,[2, 5]] = self.kp_factor[:,[2, 5]]  * self.p_gains[[2, 5]] * (joint_pos_target[:,[2, 5]]) - self.kd_factor[:,[2, 5]] * self.d_gains[[2, 5]] * (self.dof_vel[:,[2, 5]])
-        torques[:,[2, 5]] = p_gains[:, [2, 5]] * (joint_pos_target[:,[2, 5]]) - d_gains[:, [2, 5]] * (self.dof_vel[:,[2, 5]])
+        torques[:,[3, 7]] = p_gains[:, [3, 7]] * (joint_pos_target[:,[3, 7]]) - d_gains[:, [3, 7]] * (self.dof_vel[:,[3, 7]])
         if(self.cfg.domain_rand.randomize_coulomb_friction):
             torques -= (self.randomized_joint_coulomb_friction * self.dof_vel + self.randomized_joint_stick_friction * torch.sign(self.dof_vel))
         torques = torques * self.motor_strength
@@ -1822,7 +1822,7 @@ class DDTB1(BaseTask):
         return torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
     
     def _cost_hip_pos(self):
-        return torch.sum(torch.square(self.dof_pos[:, [0, 3]] - self.default_dof_pos[:, [0, 3]]), dim=1)
+        return torch.sum(torch.square(self.dof_pos[:, [0, 4]] - self.default_dof_pos[:, [0, 4]]), dim=1)
     
     def _cost_feet_height(self):
         # Reward high steps
@@ -1831,7 +1831,7 @@ class DDTB1(BaseTask):
         contact_filt = torch.logical_or(contact, self.last_contacts) 
         self.last_contacts = contact
 
-        foot_heights_cost = torch.sum(torch.square(self.dof_pos[:,[2,5]] - (-2.0)) * (~contact_filt),dim=1)
+        foot_heights_cost = torch.sum(torch.square(self.dof_pos[:,[3,7]] - (-2.0)) * (~contact_filt),dim=1)
  
         return foot_heights_cost
     

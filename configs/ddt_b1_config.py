@@ -68,7 +68,7 @@ class DDTB1Cfg(LeggedRobotCfg):
         name = "ddt_b1"
         penalize_contacts_on = ["hip", "thigh", "calf", "base_link"]
         terminate_after_contacts_on = ["base_link"]
-        self_collisions = 1
+        self_collisions = 0
         flip_visual_attachments = False
         replace_cylinder_with_capsule = True
         armature = 0.0
