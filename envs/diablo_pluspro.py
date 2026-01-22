@@ -1503,6 +1503,7 @@ class DiabloPlusPro(BaseTask):
             return torch.square(base_height - target_height)
         else:
             base_height_error = torch.square(base_height - target_height)
+            # print('base height:',base_height, " target_height: ",  target_height)
             return torch.exp(-200 * base_height_error)
     
     def _reward_torques(self):
