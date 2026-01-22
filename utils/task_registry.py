@@ -10,7 +10,7 @@ from envs.vec_env import VecEnv
 from runner import OnConstraintPolicyRunner
 
 from global_config import ROOT_DIR, ENVS_DIR
-from .helpers import get_args, update_cfg_from_args, class_to_dict, get_load_path, set_seed, parse_sim_params
+from .helpers import get_args, update_cfg_from_args, class_to_dict, get_load_path, set_seed, parse_sim_params, create_folder
 from configs import LeggedRobotCfg, LeggedRobotCfgPPO
 
 class TaskRegistry():
@@ -36,7 +36,7 @@ class TaskRegistry():
         return env_cfg, train_cfg
 
     def save_cfgs(self, name) -> Tuple[LeggedRobotCfg, LeggedRobotCfgPPO]:
-        os.mkdir(self.log_dir)
+        create_folder(self.log_dir)
 
         save_items = [
             os.path.join(

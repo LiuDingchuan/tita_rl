@@ -172,14 +172,14 @@ class NP3O:
                                                           old_actions_log_prob_batch=old_actions_log_prob_batch,
                                                           cost_advantages_batch=cost_advantages_batch)
         # compute the violation term,d_values :(num_type_costs)
-        # cost_volation = (1-self.gamma)*(torch.squeeze(cost_returns_batch).mean() - self.d_values)
+        # cost_violation = (1-self.gamma)*(torch.squeeze(cost_returns_batch).mean() - self.d_values)
         cost_violation_loss = cost_violation_batch.mean(0)
 
         # combine the result
         cost_loss = cost_surrogate_loss + cost_violation_loss
         # do max and sum over
         #cost_loss = self.k_value*torch.sum(F.relu(cost_loss))
-        # print(f"[DEBUG] cost_surrogate_loss: {cost_surrogate_loss}, cost_volation_loss: {cost_volation_loss}")
+        # print(f"[DEBUG] cost_surrogate_loss: {cost_surrogate_loss}, cost_violation_loss: {cost_violation_loss}")
         cost_loss = torch.sum(self.k_value*F.relu(cost_loss))
         return cost_loss
 
