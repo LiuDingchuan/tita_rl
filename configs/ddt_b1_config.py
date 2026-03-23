@@ -12,10 +12,12 @@ class DDTB1Cfg(LeggedRobotCfg):
         num_actions = 8 # 8 DOF (4 per leg)
 
         n_scan = 187
+        #n_scan = 0
         n_priv_latent = 5
-        n_proprio = 33  # 3+3+3+8+8+8 = 33
+        n_proprio = 33+1  # 3+3+3+8+8+8 = 33
         history_len = 10
         num_observations = n_proprio + n_scan + history_len * n_proprio + n_priv_latent
+        #num_observations = n_proprio  + history_len * n_proprio + n_priv_latent
         fail_to_terminal_time_s = 1.0
 
     class init_state(LeggedRobotCfg.init_state):
@@ -53,14 +55,14 @@ class DDTB1Cfg(LeggedRobotCfg):
         resampling_time = 10.0
         heading_command = True
         global_reference = False
-        use_random_height = False
+        use_random_height = True
 
         class ranges:
-            lin_vel_x = [0, 0.5]
+            lin_vel_x = [-1.0, 1.0]
             lin_vel_y = [0.0, 0.0]
             ang_vel_yaw = [-1, 1]
             heading = [-1.57, 1.57]
-            height = [0.45, 0.55]
+            height = [0.45, 0.45]
 
     class asset(LeggedRobotCfg.asset):
         file = "{ROOT_DIR}/resources/ddt_b1/urdf/ddt_b1.urdf"
@@ -134,16 +136,16 @@ class DDTB1Cfg(LeggedRobotCfg):
         kp_range = [0.8, 1.2]
         kd_range = [0.8, 1.2]
         
-        add_action_lag = True
+        add_action_lag = False
         randomize_lag_timesteps = True
         lag_timesteps = 3
         lag_timesteps_range = [1, 6]
 
-        add_dof_lag = True
+        add_dof_lag = False
         randomize_dof_lag_timesteps = True
         dof_lag_timesteps_range = [0, 2]
 
-        add_imu_lag = True
+        add_imu_lag = False
         randomize_imu_lag_timesteps = True
         imu_lag_timesteps_range = [0, 2]
 

@@ -137,7 +137,7 @@ class DDTB1(BaseTask):
         self.contact_buf = torch.zeros(self.num_envs, self.cfg.env.contact_buf_len, 2, device=self.device, dtype=torch.float)
 
         self.commands = torch.zeros(self.num_envs, self.cfg.commands.num_commands, dtype=torch.float, device=self.device, requires_grad=False) # x vel, y vel, yaw vel, heading
-        self.commands_scale = torch.tensor([self.obs_scales.lin_vel, self.obs_scales.lin_vel, self.obs_scales.ang_vel], device=self.device, requires_grad=False,) # TODO change this
+        self.commands_scale = torch.tensor([self.obs_scales.lin_vel, self.obs_scales.lin_vel, self.obs_scales.ang_vel,self.obs_scales.base_height], device=self.device, requires_grad=False,) # TODO change this
         self.feet_air_time = torch.zeros(self.num_envs, self.feet_indices.shape[0], dtype=torch.float, device=self.device, requires_grad=False)
         self.last_contacts = torch.zeros(self.num_envs, len(self.feet_indices), dtype=torch.bool, device=self.device, requires_grad=False)
         self.base_lin_vel = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])
@@ -422,7 +422,7 @@ class DDTB1(BaseTask):
         """
         self.action_history_buf = torch.cat([self.action_history_buf[:, 1:].clone(), actions[:, None, :].clone()], dim=1)
 
-        actions = self.reindex(actions)
+        #actions = self.reindex(actions)#动作顺序重排
         actions = actions.to(self.device)
 
         # self.action_history_buf = torch.cat([self.action_history_buf[:, 1:].clone(), actions[:, None, :].clone()], dim=1)
@@ -470,39 +470,109 @@ class DDTB1(BaseTask):
  
         return self.obs_buf,self.privileged_obs_buf,self.rew_buf,self.cost_buf,self.reset_buf, self.extras
     
+    # def compute_observations(self):
+    #     self.dof_pos[:,[3, 7]]  = 0 
+
+    #     if self.cfg.domain_rand.add_dof_lag:
+    #         self.lagged_dof_pos = self.dof_lag_buffer[torch.arange(self.num_envs), :, self.dof_lag_timestep.long()]
+    #         self.lagged_dof_vel = self.dof_vel_lag_buffer[torch.arange(self.num_envs), :, self.dof_lag_timestep.long()]
+    #     else:
+    #         self.lagged_dof_pos = self.dof_pos
+    #         self.lagged_dof_vel = self.dof_vel
+
+    #     if self.cfg.domain_rand.add_imu_lag:
+    #         self.lagged_imu = self.imu_lag_buffer[torch.arange(self.num_envs), :, self.imu_lag_timestep.long()]
+    #         self.lagged_base_ang_vel = self.lagged_imu[:,:3].clone()
+    #         self.lagged_projected_gravity = self.lagged_imu[:,-3:].clone()
+    #     # no imu lag
+    #     else:              
+    #         self.lagged_base_ang_vel = self.base_ang_vel[:,:3]
+    #         self.lagged_projected_gravity = self.projected_gravity
+
+    #     obs_buf =torch.cat((self.lagged_base_ang_vel  * self.obs_scales.ang_vel,
+    #                         self.lagged_projected_gravity,
+    #                         self.commands[:, [0, 1, 2, 4]] * self.commands_scale[[0, 1, 2, 3]],
+    #                         self.reindex((self.lagged_dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos),
+    #                         self.reindex(self.lagged_dof_vel * self.obs_scales.dof_vel),
+    #                         #self.reindex_feet(self.contact_filt.float()-0.5),
+    #                         # self.reindex(self.action_history_buf[:,-1])),dim=-1)
+    #                         self.action_history_buf[:,-1]),dim=-1)
+
+    #     noise_scales = self.cfg.noise.noise_scales
+    #     noise_level = self.cfg.noise.noise_level
+    #     noise_vec = torch.cat((torch.ones(3) * noise_scales.ang_vel * noise_level,
+    #                            torch.ones(3) * noise_scales.gravity * noise_level,
+    #                            torch.zeros(4), # commands
+    #                            torch.ones(self.num_actions) * noise_scales.dof_pos * noise_level * self.obs_scales.dof_pos,
+    #                            torch.ones(self.num_actions) * noise_scales.dof_vel * noise_level * self.obs_scales.dof_vel,
+    #                            #torch.ones(4) * noise_scales.contact_states * noise_level,
+    #                            #torch.zeros(4),
+    #                            torch.zeros(self.num_actions),
+    #                            ), dim=0)
+        
+    #     if self.cfg.noise.add_noise:
+    #         obs_buf += (2 * torch.rand_like(obs_buf) - 1) * noise_vec.to(self.device)
+
+    #     priv_latent = torch.cat((
+    #         self.base_lin_vel * self.obs_scales.lin_vel,
+    #         self.reindex_feet(self.contact_filt.float()-0.5),
+    #         # self.randomized_lag_tensor,
+    #         # #self.base_ang_vel  * self.obs_scales.ang_vel,
+    #         # # self.base_lin_vel * self.obs_scales.lin_vel,
+    #         # self.mass_params_tensor,
+    #         # self.friction_coeffs_tensor,
+    #         # self.restitution_coeffs_tensor,
+    #         # self.motor_strength, 
+    #         # self.kp_factor,
+    #         # self.kd_factor
+    #         ), dim=-1) #privileged latent vector
+        
+    #     # add perceptive inputs if not blind
+    #     if self.cfg.terrain.measure_heights:
+    #         heights = torch.clip(self.root_states[:, 2].unsqueeze(1) - 0.45 - self.measured_heights, -1, 1.)*self.obs_scales.height_measurements
+    #         self.obs_buf = torch.cat([obs_buf, heights, priv_latent, self.obs_history_buf.view(self.num_envs, -1)], dim=-1)
+    #     else:
+    #         self.obs_buf = torch.cat([obs_buf, priv_latent, self.obs_history_buf.view(self.num_envs, -1)], dim=-1)
+
+    #     # update buffer
+    #     self.obs_history_buf = torch.where(
+    #         (self.episode_length_buf <= 1)[:, None, None], 
+    #         torch.stack([obs_buf] * self.cfg.env.history_len, dim=1),
+    #         torch.cat([
+    #             self.obs_history_buf[:, 1:],
+    #             obs_buf.unsqueeze(1)
+    #         ], dim=1)
+    #     )
+    #     self.contact_buf = torch.where(
+    #         (self.episode_length_buf <= 1)[:, None, None], 
+    #         torch.stack([self.contact_filt.float()] * self.cfg.env.contact_buf_len, dim=1),
+    #         torch.cat([
+    #             self.contact_buf[:, 1:],
+    #             self.contact_filt.float().unsqueeze(1)
+    #         ], dim=1)
+    #     )
+
+    #     if self.cfg.terrain.include_act_obs_pair_buf:
+    #         # add to full observation history and action history to obs
+    #         pure_obs_hist = self.obs_history_buf[:,:,:-self.num_actions].reshape(self.num_envs,-1)
+    #         act_hist = self.action_history_buf.view(self.num_envs,-1)
+    #         self.obs_buf = torch.cat([self.obs_buf,pure_obs_hist,act_hist], dim=-1)
+
     def compute_observations(self):
-        self.dof_pos[:,[3, 7]]  = 0 
 
-        if self.cfg.domain_rand.add_dof_lag:
-            self.lagged_dof_pos = self.dof_lag_buffer[torch.arange(self.num_envs), :, self.dof_lag_timestep.long()]
-            self.lagged_dof_vel = self.dof_vel_lag_buffer[torch.arange(self.num_envs), :, self.dof_lag_timestep.long()]
-        else:
-            self.lagged_dof_pos = self.dof_pos
-            self.lagged_dof_vel = self.dof_vel
-
-        if self.cfg.domain_rand.add_imu_lag:
-            self.lagged_imu = self.imu_lag_buffer[torch.arange(self.num_envs), :, self.imu_lag_timestep.long()]
-            self.lagged_base_ang_vel = self.lagged_imu[:,:3].clone()
-            self.lagged_projected_gravity = self.lagged_imu[:,-3:].clone()
-        # no imu lag
-        else:              
-            self.lagged_base_ang_vel = self.base_ang_vel[:,:3]
-            self.lagged_projected_gravity = self.projected_gravity
-
-        obs_buf =torch.cat((self.lagged_base_ang_vel  * self.obs_scales.ang_vel,
-                            self.lagged_projected_gravity,
-                            self.commands[:, :3] * self.commands_scale,
-                            self.reindex((self.lagged_dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos),
-                            self.reindex(self.lagged_dof_vel * self.obs_scales.dof_vel),
-                            #self.reindex_feet(self.contact_filt.float()-0.5),
-                            # self.reindex(self.action_history_buf[:,-1])),dim=-1)
+        obs_buf =torch.cat((#self.base_lin_vel * self.obs_scales.lin_vel,
+                            self.base_ang_vel  * self.obs_scales.ang_vel,
+                            self.projected_gravity,
+                            self.commands[:, [0, 1, 2, 4]] * self.commands_scale[[0, 1, 2, 3]],
+                            (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,
+                            self.dof_vel * self.obs_scales.dof_vel,
                             self.action_history_buf[:,-1]),dim=-1)
 
         noise_scales = self.cfg.noise.noise_scales
         noise_level = self.cfg.noise.noise_level
         noise_vec = torch.cat((torch.ones(3) * noise_scales.ang_vel * noise_level,
                                torch.ones(3) * noise_scales.gravity * noise_level,
-                               torch.zeros(3),
+                               torch.zeros(4), # commands
                                torch.ones(self.num_actions) * noise_scales.dof_pos * noise_level * self.obs_scales.dof_pos,
                                torch.ones(self.num_actions) * noise_scales.dof_vel * noise_level * self.obs_scales.dof_vel,
                                #torch.ones(4) * noise_scales.contact_states * noise_level,

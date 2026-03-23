@@ -1,3 +1,4 @@
+import os
 import numpy as np
 
 import torch
@@ -532,6 +533,7 @@ class ActorCriticRMA(nn.Module):
     
     def save_torch_jit_policy(self,path,device):
         print("use_ActorCriticRMA")
+        os.makedirs(path, exist_ok=True)
         obs_demo_input = torch.randn(1,self.num_prop).to(device)
         hist_demo_input = torch.randn(1,self.num_hist,self.num_prop).to(device)
         model_jit = torch.jit.trace(self.actor_student_backbone,(obs_demo_input,hist_demo_input))
@@ -734,6 +736,7 @@ class ActorCriticBarlowTwins(nn.Module):
     
     def save_torch_jit_policy(self,path,device):
         print("use_ActorCriticBarlowTwins")
+        os.makedirs(path, exist_ok=True)
         obs_demo_input = torch.randn(1,self.num_prop).to(device)
         hist_demo_input = torch.randn(1,self.num_hist,self.num_prop).to(device)
         model_jit = torch.jit.trace(self.actor_teacher_backbone,(obs_demo_input,hist_demo_input))

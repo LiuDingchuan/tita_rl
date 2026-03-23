@@ -3,7 +3,7 @@ import os
 
 from isaacgym import gymapi
 from envs import LeggedRobot
-from envs import DiabloPlusPro, DDTB1
+from envs import DiabloPlusPro,DDTB1
 from modules import *
 from configs import *
 from utils import  get_args, export_policy_as_jit, task_registry, Logger
@@ -15,6 +15,17 @@ from global_config import ROOT_DIR
 
 from PIL import Image as im
 
+
+# from configs.tita_flat_config import TitaFlatCfg, TitaFlatCfgPPO
+# from configs.tita_rough_config import TitaRoughCfg, TitaRoughCfgPPO
+
+# from envs.no_constrains_legged_robot import Tita
+# from envs import *
+# from export_policy_as_onnx  import *
+# import argparse
+
+
+
 def delete_files_in_directory(directory_path):
    try:
      files = os.listdir(directory_path)
@@ -25,79 +36,6 @@ def delete_files_in_directory(directory_path):
      print("All files deleted successfully.")
    except OSError:
      print("Error occurred while deleting files.")
-     
-def init_amp_recording(env):
-    """Initialize AMP data structure and extract metadata."""
-    actor_handle = env.actor_handles[0]
-    env_handle = env.envs[0]
-    
-    # Get body names using gym API
-    num_bodies = env.gym.get_actor_rigid_body_count(env_handle, actor_handle)
-    body_names = env.gym.get_actor_rigid_body_names(env_handle, actor_handle)
-    
-    amp_data = {
-        "fps": int(1 / env.dt),
-        "dof_names": np.array(env.dof_names) if hasattr(env, "dof_names") else np.array([]),
-        "body_names": np.array(body_names),
-        "dof_positions": [],
-        "dof_velocities": [],
-        "body_positions": [],
-        "body_rotations": [], # wxyz format for AMP
-        "body_linear_velocities": [],
-        "body_angular_velocities": []
-    }
-    print(f"AMP Recording initialized. Tracking {len(body_names)} bodies.")
-    return amp_data
-
-def record_amp_frame(env, amp_data):
-    """Collect current frame state and append to amp_data."""
-    # 1. DOF Data (env 0)
-    amp_data["dof_positions"].append(env.dof_pos[0].cpu().numpy())
-    amp_data["dof_velocities"].append(env.dof_vel[0].cpu().numpy())
-    
-    # 2. Body Data (env 0) - Use tensor API to support GPU pipeline
-    # env.rigid_body_states is (num_envs, num_bodies, 13)
-    # 13: pos(3), rot(4, xyzw), lin_vel(3), ang_vel(3)
-    if hasattr(env, "rigid_body_states"):
-        rb_states = env.rigid_body_states[0].cpu().numpy()
-    else:
-        # Fallback for envs without rigid_body_states tensor (though they might fail on GPU pipeline)
-        body_states = env.gym.get_actor_rigid_body_states(env.envs[0], env.actor_handles[0], gymapi.STATE_ALL)
-        rb_states = np.zeros((len(body_states), 13), dtype=np.float32)
-        for i, s in enumerate(body_states):
-            rb_states[i, 0:3] = list(s['pose']['p'])
-            rb_states[i, 3:7] = list(s['pose']['r']) # xyzw
-            rb_states[i, 7:10] = list(s['vel']['linear'])
-            rb_states[i, 10:13] = list(s['vel']['angular'])
-
-    b_pos = rb_states[:, 0:3]
-    b_rot_xyzw = rb_states[:, 3:7]
-    b_lin_vel = rb_states[:, 7:10]
-    b_ang_vel = rb_states[:, 10:13]
-
-    # Rotation: Gym/Tensor is (x,y,z,w), convert to (w,x,y,z) for AMP
-    b_rot_wxyz = np.zeros_like(b_rot_xyzw)
-    b_rot_wxyz[:, 0] = b_rot_xyzw[:, 3] # w
-    b_rot_wxyz[:, 1] = b_rot_xyzw[:, 0] # x
-    b_rot_wxyz[:, 2] = b_rot_xyzw[:, 1] # y
-    b_rot_wxyz[:, 3] = b_rot_xyzw[:, 2] # z
-    
-    amp_data["body_positions"].append(b_pos)
-    amp_data["body_rotations"].append(b_rot_wxyz)
-    amp_data["body_linear_velocities"].append(b_lin_vel)
-    amp_data["body_angular_velocities"].append(b_ang_vel)
-
-def save_amp_recording(amp_data, filename="recorded_motion.npz"):
-    """Convert lists to numpy arrays and save to disk."""
-    for k in [
-        "dof_positions", "dof_velocities", 
-        "body_positions", "body_rotations", 
-        "body_linear_velocities", "body_angular_velocities"
-    ]:
-        amp_data[k] = np.array(amp_data[k])
-        
-    np.savez(filename, **amp_data)
-    print(f"AMP motion data saved successfully to: {filename}")
 
 def log_and_plot_states(env, env_cfg, obs, infos, actions, logger, i):
     #--- param used for plot and log states ---#
@@ -194,7 +132,7 @@ def play(args):
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     # override some parameters for testing
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, 100)
-    env_cfg.terrain.mesh_type = "trimesh"
+    #env_cfg.terrain.mesh_type = "plane"
     env_cfg.terrain.num_rows = 5
     env_cfg.terrain.num_cols = 5
     env_cfg.terrain.curriculum = False
@@ -208,9 +146,9 @@ def play(args):
     env_cfg.noise.add_noise = False
     env_cfg.domain_rand.randomize_friction = False
     env_cfg.domain_rand.randomize_restitution = False
-    # env_cfg.control.use_filter = False
-    # env_cfg.domain_rand.add_action_lag = False
-    # env_cfg.domain_rand.add_dof_lag = False
+    env_cfg.control.use_filter = False
+    env_cfg.domain_rand.add_action_lag = False
+    env_cfg.domain_rand.add_dof_lag = False
     env_cfg.domain_rand.add_imu_lag = False
     # prepare environment
     env, _ = task_registry.make_env(name=args.task, args=args, env_cfg=env_cfg)
@@ -236,10 +174,14 @@ def play(args):
     policy = n3po_runner.alg.actor_critic.to(env.device)
     # policy = n3po_runner.get_inference_policy(device=env.device) #这个函数返回函数不太对，actor_critic被改动过
     if EXPORT_POLICY:
+        run_name = args.load_run if args.load_run is not None else train_cfg.runner.load_run
+        if run_name in (None, -1, "-1"):
+            raise ValueError("EXPORT_POLICY=True 时请显式传入 --load_run，或在配置中设置 runner.load_run")
         path = os.path.join(
             ROOT_DIR,
             "logs",
             train_cfg.runner.experiment_name,
+            run_name,
             "exported",
             "policies",
         )
@@ -271,7 +213,7 @@ def play(args):
 
     img_idx = 0
 
-    video_duration = 10
+    video_duration = 40
     num_frames = int(video_duration / env.dt)# 40/0.01
     print(f'gathering {num_frames} frames')
     video = None
@@ -285,16 +227,13 @@ def play(args):
     xy_vel = 0
     feet_air_time = 0
 
-    if RECORD_AMP_DATA:
-        amp_data = init_amp_recording(env)
-
     logger = Logger(env.dt)
     for i in range(num_frames):
         action_rate += torch.sum(torch.abs(env.last_actions - env.actions),dim=1)
         z_vel += torch.square(env.base_lin_vel[:, 2])
         xy_vel += torch.sum(torch.square(env.base_ang_vel[:, :2]), dim=1)
 
-        env.commands[:,0] = 0.8
+        env.commands[:,0] = 1.0
         env.commands[:,1] = 0
         env.commands[:,2] = 0
         env.commands[:,3] = 0.0
@@ -303,10 +242,6 @@ def play(args):
         # actions = torch.clamp(actions,-1.2,1.2)
 
         obs, privileged_obs, rewards,costs,dones, infos = env.step(actions)
-        
-        if RECORD_AMP_DATA:
-            record_amp_frame(env, amp_data)
-
         env.gym.step_graphics(env.sim) # required to render in headless mode
         env.gym.render_all_camera_sensors(env.sim)
         if RECORD_FRAMES:
@@ -322,13 +257,8 @@ def play(args):
     print("z vel:",z_vel/num_frames)
     print("xy_vel:",xy_vel/num_frames)
     print("feet air reward",feet_air_time/num_frames)
-    if RECORD_AMP_DATA:
-        save_amp_recording(amp_data, f"amp_motion_{args.task}.npz")
-    
-    if video is not None:
-        video.release()
-        print("Video saved as record.mp4")
-    
+
+    video.release()
 
 if __name__ == '__main__':
     task_registry.register("tita",LeggedRobot,TitaConstraintHimRoughCfg(),TitaConstraintHimRoughCfgPPO())
@@ -341,6 +271,7 @@ if __name__ == '__main__':
     )
     RECORD_FRAMES = False
     EXPORT_POLICY = True
-    RECORD_AMP_DATA = True
     args = get_args()
     play(args)
+
+
