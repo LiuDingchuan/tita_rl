@@ -73,6 +73,8 @@ class NP3O:
         self.max_grad_norm = max_grad_norm
         self.use_clipped_value_loss = use_clipped_value_loss
         self.k_value = k_value
+        self.num_costs = getattr(self.actor_critic, "num_costs", 0)
+        self.has_costs = self.num_costs > 0
 
         self.substeps = 1
 
@@ -100,7 +102,10 @@ class NP3O:
             self.transition.hidden_states = self.actor_critic.get_hidden_states()
         self.transition.actions = self.actor_critic.act(obs).detach()
         self.transition.values = self.actor_critic.evaluate(critic_obs).detach()
-        self.transition.cost_values = self.actor_critic.evaluate_cost(critic_obs).detach()
+        if self.has_costs:
+            self.transition.cost_values = self.actor_critic.evaluate_cost(critic_obs).detach()
+        else:
+            self.transition.cost_values = torch.zeros(obs.shape[0], 0, device=self.device)
         self.transition.actions_log_prob = self.actor_critic.get_actions_log_prob(self.transition.actions).detach()
         self.transition.action_mean = self.actor_critic.action_mean.detach()
         self.transition.action_sigma = self.actor_critic.action_std.detach()
@@ -112,12 +117,16 @@ class NP3O:
     def process_env_step(self, rewards, costs, dones, infos):
 
         self.transition.rewards = rewards.clone()
-        self.transition.costs = costs.clone()
+        if self.has_costs:
+            self.transition.costs = costs.clone()
+        else:
+            self.transition.costs = torch.zeros(rewards.shape[0], 0, device=self.device)
         self.transition.dones = dones
         # Bootstrapping on time outs
         if 'time_outs' in infos:
             self.transition.rewards += self.gamma * torch.squeeze(self.transition.values * infos['time_outs'].unsqueeze(1).to(self.device), 1)
-            self.transition.costs += self.gamma * (self.transition.costs * infos['time_outs'].unsqueeze(1).to(self.device))
+            if self.has_costs:
+                self.transition.costs += self.gamma * (self.transition.costs * infos['time_outs'].unsqueeze(1).to(self.device))
         # Record the transition
         self.storage.add_transitions(self.transition)
         self.transition.clear()
@@ -128,6 +137,8 @@ class NP3O:
         self.storage.compute_returns(last_values, self.gamma, self.lam)
 
     def compute_cost_returns(self, obs):
+        if not self.has_costs:
+            return
         last_cost_values = self.actor_critic.evaluate_cost(obs).detach()
         self.storage.compute_cost_returns(last_cost_values,self.gamma,self.lam)
 
@@ -225,23 +236,33 @@ class NP3O:
                                                          old_actions_log_prob_batch=old_actions_log_prob_batch,
                                                          advantages_batch=advantages_batch)
 
-                # Cost voilation
-                viol_loss = self.compute_viol(actions_log_prob_batch=actions_log_prob_batch,
-                                old_actions_log_prob_batch=old_actions_log_prob_batch,
-                                cost_advantages_batch=cost_advantages_batch,
-                                cost_violation_batch=cost_violation_batch)
+                # Cost violation branch is disabled when num_costs == 0
+                if self.has_costs:
+                    viol_loss = self.compute_viol(actions_log_prob_batch=actions_log_prob_batch,
+                                    old_actions_log_prob_batch=old_actions_log_prob_batch,
+                                    cost_advantages_batch=cost_advantages_batch,
+                                    cost_violation_batch=cost_violation_batch)
+                else:
+                    viol_loss = torch.tensor(0.0, device=self.device)
                 # value function loss
                 value_loss = self.compute_value_loss(target_values_batch=target_values_batch,
                                         value_batch=value_batch,
                                         returns_batch=returns_batch)
                 
                 # Cost value function loss
-                cost_value_loss = self.compute_value_loss(target_values_batch=target_cost_values_batch,
-                                                        value_batch=cost_value_batch,
-                                                        returns_batch=cost_returns_batch)
+                if self.has_costs:
+                    cost_value_loss = self.compute_value_loss(target_values_batch=target_cost_values_batch,
+                                                            value_batch=cost_value_batch,
+                                                            returns_batch=cost_returns_batch)
+                else:
+                    cost_value_loss = torch.tensor(0.0, device=self.device)
 
-                main_loss = surrogate_loss + self.cost_viol_loss_coef * viol_loss 
-                combine_value_loss = self.cost_value_loss_coef * cost_value_loss + self.value_loss_coef * value_loss
+                if self.has_costs:
+                    main_loss = surrogate_loss + self.cost_viol_loss_coef * viol_loss
+                    combine_value_loss = self.cost_value_loss_coef * cost_value_loss + self.value_loss_coef * value_loss
+                else:
+                    main_loss = surrogate_loss
+                    combine_value_loss = self.value_loss_coef * value_loss
                 entropy_loss = - self.entropy_coef * entropy_batch.mean()
 
                 if self.imi_flag:

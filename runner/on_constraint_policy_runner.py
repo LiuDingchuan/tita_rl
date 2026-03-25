@@ -166,7 +166,8 @@ class OnConstraintPolicyRunner:
                 # Learning step
                 start = stop
                 self.alg.compute_returns(critic_obs)
-                self.alg.compute_cost_returns(critic_obs)
+                if self.env.cfg.cost.num_costs > 0:
+                    self.alg.compute_cost_returns(critic_obs)
 
             #update k value for better expolration
             k_value = self.alg.update_k_value(it)

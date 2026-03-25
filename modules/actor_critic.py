@@ -345,6 +345,7 @@ class ActorCriticRMA(nn.Module):
         self.kwargs = kwargs
         priv_encoder_dims= kwargs['priv_encoder_dims']
         cost_dims = kwargs['num_costs']
+        self.num_costs = cost_dims
         activation = get_activation(activation)
         self.num_prop = num_prop
         self.num_scan = num_scan
@@ -398,9 +399,12 @@ class ActorCriticRMA(nn.Module):
         self.critic = nn.Sequential(*critic_layers)
 
         # cost function
-        cost_layers = mlp_factory(activation, num_prop + self.scan_encoder_output_dim + priv_encoder_output_dim + 32, cost_dims, critic_hidden_dims, last_act=False)
-        cost_layers.append(nn.Softplus())
-        self.cost = nn.Sequential(*cost_layers)
+        if self.num_costs > 0:
+            cost_layers = mlp_factory(activation, num_prop + self.scan_encoder_output_dim + priv_encoder_output_dim + 32, cost_dims, critic_hidden_dims, last_act=False)
+            cost_layers.append(nn.Softplus())
+            self.cost = nn.Sequential(*cost_layers)
+        else:
+            self.cost = None
 
         # Action noise
         self.std = nn.Parameter(init_noise_std * torch.ones(num_actions))
@@ -496,6 +500,9 @@ class ActorCriticRMA(nn.Module):
         return value
     
     def evaluate_cost(self,obs, **kwargs):
+        if self.num_costs <= 0:
+            return torch.zeros(obs.shape[0], 0, device=obs.device)
+
         obs_prop = obs[:, :self.num_prop]
         
         scan_latent = self.infer_scandots_latent(obs)
@@ -564,6 +571,7 @@ class ActorCriticBarlowTwins(nn.Module):
         self.kwargs = kwargs
         priv_encoder_dims= kwargs['priv_encoder_dims']
         cost_dims = kwargs['num_costs']
+        self.num_costs = cost_dims
         activation = get_activation(activation) #激活函数
         self.num_prop = num_prop
         self.num_scan = num_scan
@@ -628,9 +636,12 @@ class ActorCriticBarlowTwins(nn.Module):
         self.critic = nn.Sequential(*critic_layers)
 
         # cost function
-        cost_layers = mlp_factory(activation, num_prop + self.scan_encoder_output_dim + priv_encoder_output_dim + 32, cost_dims, critic_hidden_dims, last_act=False)
-        cost_layers.append(nn.Softplus())
-        self.cost = nn.Sequential(*cost_layers)
+        if self.num_costs > 0:
+            cost_layers = mlp_factory(activation, num_prop + self.scan_encoder_output_dim + priv_encoder_output_dim + 32, cost_dims, critic_hidden_dims, last_act=False)
+            cost_layers.append(nn.Softplus())
+            self.cost = nn.Sequential(*cost_layers)
+        else:
+            self.cost = None
 
         # Action noise
         self.std = nn.Parameter(init_noise_std * torch.ones(num_actions))
@@ -701,6 +712,9 @@ class ActorCriticBarlowTwins(nn.Module):
         return value
     
     def evaluate_cost(self,obs, **kwargs):
+        if self.num_costs <= 0:
+            return torch.zeros(obs.shape[0], 0, device=obs.device)
+
         obs_prop = obs[:, :self.num_prop]
         
         scan_latent = self.infer_scandots_latent(obs)
