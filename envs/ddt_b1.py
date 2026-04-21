@@ -1653,12 +1653,10 @@ class DDTB1(BaseTask):
              2 *torch.abs(self.contact_forces[:, self.feet_indices, 2]), dim=1)
         
     def _reward_stand_still(self):
-        # Penalize motion at zero commands
-        # return torch.sum(torch.abs(self.dof_pos[:, [0,1,3,4]] - self.default_dof_pos[:, [0,1,3,4]]), dim=1) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
-        term_pos = torch.sum(torch.square(self.dof_pos[:, [0,1,3,4]] - self.default_dof_pos[:, [0,1,3,4]]), dim=1)
-        term_x = 5 * torch.square(self.base_lin_vel[:, 0])
-        # term_y = torch.square(self.base_lin_vel[:, 1])
-        return (term_x + term_pos) * (torch.norm(self.commands[:, :2], dim=1) < self.cfg.rewards.stand_still_command_range)
+        # Penalize displacement and rotation at zero commands
+        reward_lin = torch.abs(self.base_lin_vel[:, :2]) * (self.commands[:, :2] < 0.1)
+        reward_ang = (torch.abs(self.base_ang_vel[:, -1]) * (self.commands[:, 2] < 0.1)).unsqueeze(dim=-1)
+        return torch.sum(torch.cat((reward_lin, reward_ang), dim=-1), dim=-1)
     
     def _reward_feet_contact_forces(self):
         # penalize high contact forces
@@ -1742,10 +1740,7 @@ class DDTB1(BaseTask):
         return -self.projected_gravity[:,2]
 
     def _reward_stand_nice(self):
-        velocity_penalty = torch.sum(torch.abs(self.dof_vel[:, [0, 1, 3, 4]]), dim=1)
-        base_tilt_penalty = (1 - self.projected_gravity[:, 2])
-        is_static = (torch.norm(self.commands[:, :2], dim=1) < self.cfg.rewards.stand_still_command_range)
-        return velocity_penalty * base_tilt_penalty * is_static    
+        return torch.sum(torch.abs(self.dof_pos[:, [0, 1, 2, 4, 5, 6]] - self.default_dof_pos[:, [0, 1, 2, 4, 5, 6]]), dim=1) * (1 - self.projected_gravity[:,2]) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)   
     
     #计算每只脚在机器人body系下的x方向位置误差（希望都接近于0)，惩罚脚偏离原点x轴距离
     def _reward_foot_relative_x(self):

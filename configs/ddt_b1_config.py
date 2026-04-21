@@ -62,7 +62,7 @@ class DDTB1Cfg(LeggedRobotCfg):
             lin_vel_y = [0.0, 0.0]
             ang_vel_yaw = [-1, 1]
             heading = [-1.57, 1.57]
-            height = [0.45, 0.45]
+            height = [0.4, 0.4]
 
     class asset(LeggedRobotCfg.asset):
         file = "{ROOT_DIR}/resources/ddt_b1/urdf/ddt_b1.urdf"

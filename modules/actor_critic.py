@@ -549,7 +549,10 @@ class ActorCriticRMA(nn.Module):
                     (obs_demo_input,hist_demo_input),
                     f"{path}/sim2sim.onnx",
                     verbose=True,
-                    export_params=True
+                    export_params=True,
+                    opset_version=15,
+                    input_names=["nn_input0", "nn_input1"],
+                    output_names=["nn_output"]
                     )
 
 class ActorCriticBarlowTwins(nn.Module):
@@ -759,6 +762,9 @@ class ActorCriticBarlowTwins(nn.Module):
                     (obs_demo_input,hist_demo_input),
                     f"{path}/sim2sim.onnx",
                     verbose=True,
-                    export_params=True
+                    export_params=True,
+                    opset_version=15,
+                    input_names=["nn_input0", "nn_input1"],
+                    output_names=["nn_output"]
                     )
         
